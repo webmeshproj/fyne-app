@@ -16,8 +16,19 @@ limitations under the License.
 
 package main
 
-import "github.com/webmeshproj/app/internal/app"
+import (
+	"flag"
+
+	"github.com/webmeshproj/app/internal/app"
+	"github.com/webmeshproj/app/internal/daemon"
+)
 
 func main() {
+	helperDaemon := flag.Bool("daemon", false, "Run the helper daemon")
+	flag.Parse()
+	if *helperDaemon {
+		daemon.Run()
+		return
+	}
 	app.New().Run()
 }

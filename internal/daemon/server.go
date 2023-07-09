@@ -104,6 +104,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defer r.Body.Close()
 	var req connectRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -135,6 +136,7 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDisconnect(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defer r.Body.Close()
 	if s.store == nil {
 		s.returnError(w, ErrNotConnected)
 		return
@@ -152,6 +154,7 @@ func (s *Server) handleDisconnect(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleInterfaceMetrics(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defer r.Body.Close()
 	if s.store == nil {
 		s.returnError(w, ErrNotConnected)
 		return
