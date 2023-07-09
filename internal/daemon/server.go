@@ -188,6 +188,7 @@ func (s *Server) returnOK(w http.ResponseWriter) {
 
 // returnError returns an error response.
 func (s *Server) returnError(w http.ResponseWriter, err error) {
+	s.log.Error("error handling daemon request", "error", err.Error())
 	w.WriteHeader(http.StatusInternalServerError)
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(daemonError{Message: err.Error()})

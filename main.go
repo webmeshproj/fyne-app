@@ -26,6 +26,8 @@ import (
 func main() {
 	helperDaemon := flag.Bool("daemon", false, "Run the helper daemon")
 	flag.Parse()
+	// TODO: set up logging
+	// Should tee to a file in the user's home directory when running the app
 	if *helperDaemon {
 		daemon.Run()
 		return

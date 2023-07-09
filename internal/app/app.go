@@ -54,6 +54,7 @@ func New() *App {
 		main: a.NewWindow("WebMesh"),
 		cli:  daemon.NewClient(),
 	}
+	app.main.Resize(fyne.NewSize(400, 300))
 	// See if we are able to load the config file.
 	err := app.cli.LoadConfig(func() string {
 		return app.Preferences().StringWithFallback("config-file", config.DefaultConfigPath)
@@ -72,7 +73,6 @@ func New() *App {
 		}
 	})
 	app.setupCanvas()
-	app.main.Resize(fyne.NewSize(400, 300))
 	app.main.Show()
 	return app
 }
@@ -84,14 +84,25 @@ func (app *App) setupCanvas() {
 	connectedLabel := widget.NewLabelWithData(connectedText)
 	connectSwitch, connected := newConnectSwitch()
 	connected.AddListener(binding.NewDataListener(func() {
-		val, _ := connected.Get()
+		val, err := connected.Get()
+		if err != nil {
+			slog.Default().Error("error getting connected value", "error", err.Error())
+			return
+		}
 		switch val {
 		case switchConnecting, switchConnected:
 			// Connect to the mesh if not connected and profile has changed.
+			slog.Default().Info("connecting to mesh")
 			connectSwitch.SetValue(switchConnected)
 			connectedText.Set("Connected")
 		case switchDisconnected:
 			// Disconnect from the mesh.
+			slog.Default().Info("disconnecting from mesh")
+			err := app.cli.Disconnect(context.Background())
+			if err != nil && !daemon.IsNotConnected(err) {
+				slog.Default().Error("error disconnecting from mesh", "error", err.Error())
+				return
+			}
 			connectedText.Set("Disconnected")
 		}
 	}))

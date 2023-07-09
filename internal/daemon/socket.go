@@ -18,14 +18,46 @@ package daemon
 
 import (
 	"context"
+	"fmt"
 	"net"
+	"os"
+	"os/user"
+	"path/filepath"
 	"runtime"
+	"strconv"
 )
 
 var socketPath = getSocketPath()
 
 // listen returns a new listener for the daemon socket.
 func listen() (net.Listener, error) {
+	if runtime.GOOS != "windows" {
+		// Ensure the socket directory exists.
+		sockDir := filepath.Dir(socketPath)
+		if err := os.MkdirAll(sockDir, 0750); err != nil {
+			return nil, err
+		}
+		// Ensure the socket directory has the correct permissions.
+		if err := os.Chmod(sockDir, 0750); err != nil {
+			return nil, fmt.Errorf("chmod unix socket directory: %w", err)
+		}
+		// Change the group ownership to the webmesh group if it exists.
+		group, err := user.LookupGroup("webmesh")
+		if err == nil {
+			gid, err := strconv.Atoi(group.Gid)
+			if err != nil {
+				return nil, fmt.Errorf("invalid gid: %w", err)
+			}
+			err = os.Chown(sockDir, -1, gid)
+			if err != nil {
+				return nil, fmt.Errorf("chown unix socket directory: %w", err)
+			}
+		}
+		// Remove any existing socket file.
+		if err := os.Remove(socketPath); err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+	}
 	return net.Listen("unix", socketPath)
 }
 
@@ -41,5 +73,5 @@ func getSocketPath() string {
 	if runtime.GOOS == "windows" {
 		return "\\\\.\\pipe\\webmesh.sock"
 	}
-	return "/var/run/webmesh.sock"
+	return "/var/run/webmesh/webmesh.sock"
 }
