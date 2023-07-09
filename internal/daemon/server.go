@@ -27,7 +27,6 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/webmeshproj/node/pkg/ctlcmd/config"
 	"github.com/webmeshproj/node/pkg/store"
@@ -103,20 +102,19 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 // handleConnect handles a request to connect to the mesh.
 func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	var req connectRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		s.returnError(w, fmt.Errorf("decode request: %w", err))
 		return
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	cfg, err := config.FromFile(req.ConfigFile)
 	if err != nil {
 		s.returnError(w, fmt.Errorf("load config: %w", err))
 		return
 	}
-	opts := newStoreOptions(cfg, req.Options)
 	if s.store != nil {
 		// Close the existing store.
 		err = s.store.Close()
@@ -125,60 +123,22 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	s.store, err = store.New(opts)
+	s.store, err = newStore(r.Context(), cfg, req.Options)
 	if err != nil {
-		s.returnError(w, fmt.Errorf("create store: %w", err))
-		return
-	}
-	err = s.store.Open()
-	if err != nil {
-		s.returnError(w, fmt.Errorf("open store: %w", err))
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), time.Second*time.Duration(req.Options.ConnectTimeout))
-	defer cancel()
-	<-s.store.ReadyNotify(ctx)
-	if ctx.Err() != nil {
-		err = s.store.Close()
-		if err != nil {
-			s.log.Error("error closing store", "error", err.Error())
-		}
-		s.store = nil
-		s.returnError(w, fmt.Errorf("store failed to become ready: %w", ctx.Err()))
+		s.returnError(w, err)
 		return
 	}
 	s.returnOK(w)
 }
 
-func newStoreOptions(cfg *config.Config, opts ConnectOptions) *store.Options {
-	storeOpts := store.NewOptions()
-	storeOpts.Raft.InMemory = true
-	storeOpts.Raft.ListenAddress = fmt.Sprintf(":%d", opts.RaftPort)
-	storeOpts.Raft.LeaveOnShutdown = true
-	storeOpts.Raft.ShutdownTimeout = time.Second * 10
-	storeOpts.Mesh.NoIPv4 = opts.NoIPv4
-	storeOpts.Mesh.NoIPv6 = opts.NoIPv6
-	storeOpts.Mesh.GRPCPort = int(opts.GRPCPort)
-	storeOpts.WireGuard.InterfaceName = opts.InterfaceName
-	storeOpts.WireGuard.ListenPort = int(opts.ListenPort)
-	storeOpts.WireGuard.ForceTUN = opts.ForceTUN
-	storeOpts.WireGuard.PersistentKeepAlive = time.Second * 10
-	if opts.ConnectTimeout <= 0 {
-		opts.ConnectTimeout = 30
-	}
-	storeOpts.Mesh.JoinTimeout = time.Second * time.Duration(opts.ConnectTimeout)
-	// TODO: Add auth config from profile.
-	return storeOpts
-}
-
 // handleDisconnect handles a request to disconnect from the mesh.
 func (s *Server) handleDisconnect(w http.ResponseWriter, r *http.Request) {
-	if s.store == nil {
-		s.returnError(w, fmt.Errorf("not connected"))
-		return
-	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.store == nil {
+		s.returnError(w, ErrNotConnected)
+		return
+	}
 	err := s.store.Close()
 	if err != nil {
 		s.returnError(w, err)
@@ -190,12 +150,12 @@ func (s *Server) handleDisconnect(w http.ResponseWriter, r *http.Request) {
 
 // handleInterfaceMetrics handles a request to get the interface metrics.
 func (s *Server) handleInterfaceMetrics(w http.ResponseWriter, r *http.Request) {
-	if s.store == nil {
-		s.returnError(w, fmt.Errorf("not connected"))
-		return
-	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.store == nil {
+		s.returnError(w, ErrNotConnected)
+		return
+	}
 	metrics, err := s.store.WireGuard().Metrics()
 	if err != nil {
 		s.returnError(w, fmt.Errorf("get interface metrics: %w", err))

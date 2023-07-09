@@ -23,9 +23,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"os/user"
+	"runtime"
+	"sync"
 
 	v1 "github.com/webmeshproj/api/v1"
 	"github.com/webmeshproj/node/pkg/ctlcmd/config"
+	"github.com/webmeshproj/node/pkg/store"
 )
 
 // Client is the client for the daemon.
@@ -76,6 +81,10 @@ type client struct {
 	*http.Client
 	configPath string
 	config     *config.Config
+	noDaemon   bool
+	// Only valid when noDaemon is true.
+	store store.Store
+	mu    sync.Mutex
 }
 
 // NewClient returns a new client.
@@ -83,6 +92,19 @@ func NewClient() Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.DialContext = dial
 	return &client{
+		// If we are root, we don't need to use the unix socket
+		// if it does not exist.
+		noDaemon: func() bool {
+			_, err := os.Stat(getSocketPath())
+			if runtime.GOOS == "windows" {
+				user, err := user.Current()
+				if err == nil {
+					return user.Name == "SYSTEM" && os.IsNotExist(err)
+				}
+				return false
+			}
+			return os.Getuid() == 0 && os.IsNotExist(err)
+		}(),
 		Client: &http.Client{
 			Transport: transport,
 		},
@@ -90,6 +112,8 @@ func NewClient() Client {
 }
 
 func (c *client) LoadConfig(path string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	var err error
 	c.configPath = path
 	c.config, err = config.FromFile(path)
@@ -97,6 +121,8 @@ func (c *client) LoadConfig(path string) error {
 }
 
 func (c *client) SaveConfig(path string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.config == nil {
 		return nil
 	}
@@ -108,6 +134,22 @@ func (c *client) Config() *config.Config {
 }
 
 func (c *client) Connect(ctx context.Context, opts ConnectOptions) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.noDaemon {
+		var err error
+		if c.store != nil {
+			err = c.store.Close()
+			if err != nil {
+				return fmt.Errorf("close existing store: %w", err)
+			}
+		}
+		c.store, err = newStore(ctx, c.config, opts)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 	req := &connectRequest{
 		ConfigFile: c.configPath,
 		Options:    opts,
@@ -116,10 +158,30 @@ func (c *client) Connect(ctx context.Context, opts ConnectOptions) error {
 }
 
 func (c *client) Disconnect(ctx context.Context) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.noDaemon {
+		if c.store == nil {
+			return ErrNotConnected
+		}
+		err := c.store.Close()
+		if err != nil {
+			return fmt.Errorf("close store: %w", err)
+		}
+		c.store = nil
+	}
 	return c.do(ctx, http.MethodPost, "/disconnect", nil, nil)
 }
 
 func (c *client) InterfaceMetrics(ctx context.Context) (*v1.InterfaceMetrics, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.noDaemon {
+		if c.store == nil {
+			return nil, ErrNotConnected
+		}
+		return c.store.WireGuard().Metrics()
+	}
 	var out v1.InterfaceMetrics
 	return &out, c.do(ctx, http.MethodGet, "/interface-metrics", nil, &out)
 }

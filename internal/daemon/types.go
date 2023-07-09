@@ -16,6 +16,11 @@ limitations under the License.
 
 package daemon
 
+import "fmt"
+
+// ErrNotConnected is returned when the daemon is not connected to a mesh.
+var ErrNotConnected = fmt.Errorf("not connected")
+
 // daemonError is an error returned by the daemon.
 type daemonError struct {
 	Message string `json:"message"`
