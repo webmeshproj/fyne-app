@@ -72,6 +72,7 @@ func New() *App {
 		}
 	})
 	app.setupCanvas()
+	app.main.Resize(fyne.NewSize(400, 300))
 	app.main.Show()
 	return app
 }
