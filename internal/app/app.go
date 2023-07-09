@@ -17,27 +17,86 @@ limitations under the License.
 package app
 
 import (
+	"context"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
+	"github.com/webmeshproj/node/pkg/ctlcmd/config"
+	"golang.org/x/exp/slog"
 
 	"github.com/webmeshproj/app/internal/daemon"
 )
 
+// appID is the application ID.
 const appID = "com.webmeshproj.app"
 
+// App is the application.
 type App struct {
 	fyne.App
+	// main is the main window.
+	main fyne.Window
+	// cli is the daemon client. It is used to communicate with the daemon.
+	// When running as root on unix-like systems and no daemon is available,
+	// this will be a pass-through client that executes the requested command
+	// directly.
 	cli daemon.Client
 }
 
+// New sets up and returns a new application.
 func New() *App {
 	a := app.NewWithID(appID)
 	app := &App{
-		App: a,
-		cli: daemon.NewClient(),
+		App:  a,
+		main: a.NewWindow("WebMesh"),
+		cli:  daemon.NewClient(),
 	}
-	app.setup()
+	// See if we are able to load the config file.
+	err := app.cli.LoadConfig(func() string {
+		return app.Preferences().StringWithFallback("config-file", config.DefaultConfigPath)
+	}())
+	if err != nil {
+		slog.Default().Error("error loading config", "error", err.Error())
+	}
+	// Set a close interceptor to make sure we disconnect on shutdown.
+	app.main.SetCloseIntercept(func() {
+		defer app.main.Close()
+		if app.cli.Connected() {
+			err := app.cli.Disconnect(context.Background())
+			if err != nil {
+				slog.Default().Error("error disconnecting from mesh", "error", err.Error())
+			}
+		}
+	})
+	app.setupCanvas()
+	app.main.Show()
 	return app
 }
 
-func (app *App) setup() {}
+// setupCanvas sets up the initial state of the main canvas.
+func (app *App) setupCanvas() {
+	connectedText := binding.NewString()
+	connectedText.Set("Disconnected")
+	connectedLabel := widget.NewLabelWithData(connectedText)
+	connectSwitch, connected := newTappableSlider()
+	connected.AddListener(binding.NewDataListener(func() {
+		val, _ := connected.Get()
+		switch val {
+		case sliderConnecting, sliderConnected:
+			// Connect to the mesh if not connected and profile has changed.
+			connectSwitch.SetValue(sliderConnected)
+			connectedText.Set("Connected")
+		case sliderDisconnected:
+			// Disconnect from the mesh.
+			connectedText.Set("Disconnected")
+		}
+	}))
+	header := container.New(layout.NewHBoxLayout(), connectSwitch, connectedLabel, layout.NewSpacer())
+	app.main.SetContent(container.New(layout.NewVBoxLayout(),
+		header,
+		widget.NewSeparator(),
+	))
+}

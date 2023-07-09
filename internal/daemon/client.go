@@ -42,6 +42,8 @@ type Client interface {
 	// Config returns the current client configuration, or nil if none
 	// is loaded.
 	Config() *config.Config
+	// Connected returns true if the client is connected to the mesh.
+	Connected() bool
 	// Connect connects to the mesh.
 	Connect(ctx context.Context, opts ConnectOptions) error
 	// Disconnect disconnects from the mesh.
@@ -81,10 +83,11 @@ type client struct {
 	*http.Client
 	configPath string
 	config     *config.Config
+	connected  bool
 	noDaemon   bool
+	mu         sync.Mutex
 	// Only valid when noDaemon is true.
 	store store.Store
-	mu    sync.Mutex
 }
 
 // NewClient returns a new client.
@@ -133,6 +136,12 @@ func (c *client) Config() *config.Config {
 	return c.config
 }
 
+func (c *client) Connected() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.connected
+}
+
 func (c *client) Connect(ctx context.Context, opts ConnectOptions) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -154,7 +163,11 @@ func (c *client) Connect(ctx context.Context, opts ConnectOptions) error {
 		ConfigFile: c.configPath,
 		Options:    opts,
 	}
-	return c.do(ctx, http.MethodPost, "/connect", req, nil)
+	err := c.do(ctx, http.MethodPost, "/connect", req, nil)
+	if err == nil {
+		c.connected = true
+	}
+	return err
 }
 
 func (c *client) Disconnect(ctx context.Context) error {
@@ -170,7 +183,11 @@ func (c *client) Disconnect(ctx context.Context) error {
 		}
 		c.store = nil
 	}
-	return c.do(ctx, http.MethodPost, "/disconnect", nil, nil)
+	err := c.do(ctx, http.MethodPost, "/disconnect", nil, nil)
+	if err == nil {
+		c.connected = false
+	}
+	return err
 }
 
 func (c *client) InterfaceMetrics(ctx context.Context) (*v1.InterfaceMetrics, error) {
@@ -213,10 +230,12 @@ func (c *client) do(ctx context.Context, method, path string, req, resp interfac
 		}
 		return &err
 	}
-	if resp != nil {
-		if err := json.NewDecoder(res.Body).Decode(resp); err != nil {
-			return fmt.Errorf("decode response: %w", err)
-		}
+	if resp == nil {
+		// Make sure we read the body so the connection can be reused.
+		resp = &daemonOKResponse{}
+	}
+	if err := json.NewDecoder(res.Body).Decode(resp); err != nil {
+		return fmt.Errorf("decode response: %w", err)
 	}
 	return nil
 }

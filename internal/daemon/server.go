@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/webmeshproj/node/pkg/ctlcmd/config"
 	"github.com/webmeshproj/node/pkg/store"
@@ -45,8 +46,11 @@ type Server struct {
 func NewServer() *Server {
 	log := slog.Default().With("component", "daemon")
 	s := &Server{
-		Server: &http.Server{},
-		log:    log,
+		Server: &http.Server{
+			ReadTimeout:  time.Second * 5,
+			WriteTimeout: time.Second * 5,
+		},
+		log: log,
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/connect", requirePOST(log, s.handleConnect))
