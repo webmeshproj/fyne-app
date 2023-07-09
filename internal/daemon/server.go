@@ -58,7 +58,7 @@ func NewServer() *Server {
 }
 
 // ListenAndServe listens on the unix socket and serves requests.
-func (s *Server) ListenAndServe(addr string) error {
+func (s *Server) ListenAndServe() error {
 	// Mask the last bit so the socket is only accessible by the owner
 	// and webmesh group.
 	syscall.Umask(0007)
