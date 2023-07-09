@@ -16,10 +16,16 @@ limitations under the License.
 
 package daemon
 
-import "fmt"
+import "errors"
+
+// IsNotConnected returns true if the error signals not being connected
+// to the mesh.
+func IsNotConnected(err error) bool {
+	return err == errNotConnected || err.Error() == errNotConnected.Error()
+}
 
 // ErrNotConnected is returned when the daemon is not connected to a mesh.
-var ErrNotConnected = fmt.Errorf("not connected")
+var errNotConnected = errors.New("not connected")
 
 // daemonError is an error returned by the daemon.
 type daemonError struct {

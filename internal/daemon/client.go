@@ -162,7 +162,7 @@ func (c *client) Disconnect(ctx context.Context) error {
 	defer c.mu.Unlock()
 	if c.noDaemon {
 		if c.store == nil {
-			return ErrNotConnected
+			return errNotConnected
 		}
 		err := c.store.Close()
 		if err != nil {
@@ -178,7 +178,7 @@ func (c *client) InterfaceMetrics(ctx context.Context) (*v1.InterfaceMetrics, er
 	defer c.mu.Unlock()
 	if c.noDaemon {
 		if c.store == nil {
-			return nil, ErrNotConnected
+			return nil, errNotConnected
 		}
 		return c.store.WireGuard().Metrics()
 	}

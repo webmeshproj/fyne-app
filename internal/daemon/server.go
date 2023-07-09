@@ -138,7 +138,7 @@ func (s *Server) handleDisconnect(w http.ResponseWriter, r *http.Request) {
 	defer s.mu.Unlock()
 	defer r.Body.Close()
 	if s.store == nil {
-		s.returnError(w, ErrNotConnected)
+		s.returnError(w, errNotConnected)
 		return
 	}
 	err := s.store.Close()
@@ -156,7 +156,7 @@ func (s *Server) handleInterfaceMetrics(w http.ResponseWriter, r *http.Request) 
 	defer s.mu.Unlock()
 	defer r.Body.Close()
 	if s.store == nil {
-		s.returnError(w, ErrNotConnected)
+		s.returnError(w, errNotConnected)
 		return
 	}
 	metrics, err := s.store.WireGuard().Metrics()
