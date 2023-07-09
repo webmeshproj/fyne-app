@@ -22,15 +22,17 @@ import (
 	"runtime"
 )
 
+var socketPath = getSocketPath()
+
 // listen returns a new listener for the daemon socket.
 func listen() (net.Listener, error) {
-	return net.Listen("unix", getSocketPath())
+	return net.Listen("unix", socketPath)
 }
 
 // dial returns a new connection to the daemon socket. It matches the signature
 // of net.DialContext so it can be used as a dialer.
 func dial(ctx context.Context, _, _ string) (net.Conn, error) {
-	return (&net.Dialer{}).DialContext(ctx, "unix", getSocketPath())
+	return (&net.Dialer{}).DialContext(ctx, "unix", socketPath)
 }
 
 // getSocketPath returns the path to the socket file for communicating

@@ -74,7 +74,7 @@ func (s *Server) ListenAndServe() error {
 			if err != nil {
 				return fmt.Errorf("invalid gid: %w", err)
 			}
-			err = os.Chown(getSocketPath(), -1, gid)
+			err = os.Chown(socketPath, -1, gid)
 			if err != nil {
 				return fmt.Errorf("chown unix socket: %w", err)
 			}
@@ -91,7 +91,7 @@ func (s *Server) ListenAndServe() error {
 func (s *Server) Shutdown(ctx context.Context) error {
 	if runtime.GOOS != "windows" {
 		defer func() {
-			err := os.Remove(getSocketPath())
+			err := os.Remove(socketPath)
 			if err != nil && !os.IsNotExist(err) {
 				s.log.Error("error removing unix socket", "error", err.Error())
 			}

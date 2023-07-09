@@ -1,3 +1,5 @@
+//go:build !windows
+
 /*
 Copyright 2023 Avi Zimmerman <avi.zimmerman@gmail.com>
 

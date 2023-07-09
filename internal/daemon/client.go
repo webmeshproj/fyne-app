@@ -93,7 +93,7 @@ func NewClient() Client {
 		// If we are root, we don't need to use the unix socket
 		// if it does not exist.
 		noDaemon: func() bool {
-			_, err := os.Stat(getSocketPath())
+			_, err := os.Stat(socketPath)
 			if runtime.GOOS == "windows" {
 				user, err := user.Current()
 				if err == nil {
