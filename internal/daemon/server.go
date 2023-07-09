@@ -81,7 +81,7 @@ func (s *Server) ListenAndServe() error {
 		}
 	}
 	err = s.Server.Serve(l)
-	if err != http.ErrServerClosed {
+	if err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("serve: %w", err)
 	}
 	return nil

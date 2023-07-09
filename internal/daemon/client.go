@@ -89,8 +89,6 @@ type client struct {
 
 // NewClient returns a new client.
 func NewClient() Client {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.DialContext = dial
 	return &client{
 		// If we are root, we don't need to use the unix socket
 		// if it does not exist.
@@ -106,7 +104,9 @@ func NewClient() Client {
 			return os.Getuid() == 0 && os.IsNotExist(err)
 		}(),
 		Client: &http.Client{
-			Transport: transport,
+			Transport: &http.Transport{
+				DialContext: dial,
+			},
 		},
 	}
 }
