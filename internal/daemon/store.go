@@ -50,7 +50,6 @@ func newStore(ctx context.Context, cfg *config.Config, opts ConnectOptions) (sto
 }
 
 func newStoreOptions(cfg *config.Config, opts ConnectOptions) *store.Options {
-	cfg.SetContext(opts.Profile)
 	storeOpts := store.NewOptions()
 	storeOpts.Raft.InMemory = true
 	storeOpts.Raft.ListenAddress = fmt.Sprintf(":%d", opts.RaftPort)
@@ -67,7 +66,8 @@ func newStoreOptions(cfg *config.Config, opts ConnectOptions) *store.Options {
 		opts.ConnectTimeout = 30
 	}
 	storeOpts.Mesh.JoinTimeout = time.Second * time.Duration(opts.ConnectTimeout)
-	user := cfg.CurrentUser()
+	ctx := cfg.GetContext(opts.Profile)
+	user := cfg.GetUser(ctx.User)
 	if user.BasicAuthPassword != "" && user.BasicAuthUsername != "" {
 		storeOpts.Auth.Basic = &store.BasicAuthOptions{
 			Username: user.BasicAuthUsername,
@@ -86,7 +86,7 @@ func newStoreOptions(cfg *config.Config, opts ConnectOptions) *store.Options {
 			KeyData:  user.ClientKeyData,
 		}
 	}
-	cluster := cfg.CurrentCluster()
+	cluster := cfg.GetCluster(ctx.Cluster)
 	if cluster.Insecure {
 		storeOpts.TLS.Insecure = true
 	} else {
