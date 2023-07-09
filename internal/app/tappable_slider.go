@@ -23,17 +23,17 @@ import (
 )
 
 const (
-	sliderDisconnected = 0
-	sliderConnecting   = 0.5
-	sliderConnected    = 1
+	switchDisconnected = 0
+	switchConnecting   = 0.5
+	switchConnected    = 1
 )
 
-type tappableSlider struct {
+type connectSwitch struct {
 	widget.Slider
 }
 
-func newTappableSlider() (*tappableSlider, binding.Float) {
-	slider := &tappableSlider{}
+func newConnectSwitch() (*connectSwitch, binding.Float) {
+	slider := &connectSwitch{}
 	slider.ExtendBaseWidget(slider)
 	connected := binding.NewFloat()
 	slider.Bind(connected)
@@ -44,11 +44,11 @@ func newTappableSlider() (*tappableSlider, binding.Float) {
 	return slider, connected
 }
 
-func (t *tappableSlider) Tapped(_ *fyne.PointEvent) {
+func (t *connectSwitch) Tapped(_ *fyne.PointEvent) {
 	switch t.Value {
-	case sliderDisconnected:
-		t.SetValue(sliderConnecting)
-	case sliderConnected:
-		t.SetValue(sliderDisconnected)
+	case switchDisconnected:
+		t.SetValue(switchConnecting)
+	case switchConnected:
+		t.SetValue(switchDisconnected)
 	}
 }

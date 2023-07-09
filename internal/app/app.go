@@ -81,15 +81,15 @@ func (app *App) setupCanvas() {
 	connectedText := binding.NewString()
 	connectedText.Set("Disconnected")
 	connectedLabel := widget.NewLabelWithData(connectedText)
-	connectSwitch, connected := newTappableSlider()
+	connectSwitch, connected := newConnectSwitch()
 	connected.AddListener(binding.NewDataListener(func() {
 		val, _ := connected.Get()
 		switch val {
-		case sliderConnecting, sliderConnected:
+		case switchConnecting, switchConnected:
 			// Connect to the mesh if not connected and profile has changed.
-			connectSwitch.SetValue(sliderConnected)
+			connectSwitch.SetValue(switchConnected)
 			connectedText.Set("Connected")
-		case sliderDisconnected:
+		case switchDisconnected:
 			// Disconnect from the mesh.
 			connectedText.Set("Disconnected")
 		}
