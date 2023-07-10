@@ -18,6 +18,9 @@ package app
 
 import (
 	"context"
+	"runtime"
+	"strconv"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -26,6 +29,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/webmeshproj/node/pkg/ctlcmd/config"
+	"github.com/webmeshproj/node/pkg/net/wireguard"
 	"golang.org/x/exp/slog"
 
 	"github.com/webmeshproj/app/internal/daemon"
@@ -40,6 +44,10 @@ type App struct {
 	fyne.App
 	// main is the main window.
 	main fyne.Window
+	// currentProfile is the current profile.
+	currentProfile binding.String
+	// profiles is the widget for selecting profiles.
+	profiles *widget.Select
 	// cli is the daemon client. It is used to communicate with the daemon.
 	// When running as root on unix-like systems and no daemon is available,
 	// this will be a pass-through client that executes the requested command
@@ -53,10 +61,12 @@ type App struct {
 func New() *App {
 	a := app.NewWithID(appID)
 	app := &App{
-		App:  a,
-		main: a.NewWindow("WebMesh"),
-		cli:  daemon.NewClient(),
-		log:  slog.Default(),
+		App:            a,
+		main:           a.NewWindow("WebMesh"),
+		currentProfile: binding.NewString(),
+		profiles:       widget.NewSelect([]string{}, nil),
+		cli:            daemon.NewClient(),
+		log:            slog.Default(),
 	}
 	app.setup()
 	app.main.Show()
@@ -71,15 +81,19 @@ func (app *App) setup() {
 	if err != nil {
 		app.log.Error("error loading config", "error", err.Error())
 	}
-	app.main.Resize(fyne.NewSize(800, 600))
+	app.main.Resize(fyne.NewSize(600, 400))
 	app.main.SetCloseIntercept(app.closeIntercept)
 	app.main.SetMainMenu(app.newMainMenu())
+
 	connectedText := binding.NewString()
 	connectedText.Set("Disconnected")
 	connectedLabel := widget.NewLabelWithData(connectedText)
 	connectSwitch, connected := newConnectSwitch()
 	connected.AddListener(binding.NewDataListener(app.onConnectChange(connectedText, connected)))
-	header := container.New(layout.NewHBoxLayout(), connectSwitch, connectedLabel, layout.NewSpacer())
+	app.reloadProfileSelector()
+	header := container.New(layout.NewHBoxLayout(),
+		connectSwitch, connectedLabel, layout.NewSpacer(), widget.NewLabel("Profile"), app.profiles,
+	)
 	app.main.SetContent(container.New(layout.NewVBoxLayout(),
 		header,
 		widget.NewSeparator(),
@@ -99,6 +113,48 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			// Connect to the mesh if not connected and profile has changed.
 			app.log.Info("connecting to mesh")
 			label.Set("Connecting")
+			profile, err := app.currentProfile.Get()
+			if err != nil {
+				app.log.Error("error getting profile", "error", err.Error())
+				// TODO: Display error.
+				label.Set("Disconnected")
+				switchValue.Set(switchDisconnected)
+				return
+			}
+			requiresTUN := runtime.GOOS != "linux" && runtime.GOOS != "freebsd"
+			err = app.cli.Connect(context.Background(), daemon.ConnectOptions{
+				Profile:       profile,
+				InterfaceName: app.Preferences().StringWithFallback(preferenceInterfaceName, wireguard.DefaultInterfaceName),
+				ForceTUN:      app.Preferences().BoolWithFallback(preferenceForceTUN, requiresTUN),
+				ListenPort: func() uint16 {
+					v, _ := strconv.ParseUint(app.Preferences().StringWithFallback(preferenceWireGuardPort, "51820"), 10, 16)
+					return uint16(v)
+				}(),
+				RaftPort: func() uint16 {
+					v, _ := strconv.ParseUint(app.Preferences().StringWithFallback(preferenceRaftPort, "9443"), 10, 16)
+					return uint16(v)
+				}(),
+				GRPCPort: func() uint16 {
+					v, _ := strconv.ParseUint(app.Preferences().StringWithFallback(preferenceGRPCPort, "8443"), 10, 16)
+					return uint16(v)
+				}(),
+				NoIPv4: app.Preferences().BoolWithFallback(preferenceDisableIPv4, false),
+				NoIPv6: app.Preferences().BoolWithFallback(preferenceDisableIPv6, false),
+				ConnectTimeout: func() int {
+					d, _ := time.ParseDuration(app.Preferences().StringWithFallback(preferenceConnectTimeout, "30s"))
+					return int(d.Seconds())
+				}(),
+				// TODO:
+				LocalDNS:     false,
+				LocalDNSPort: 0,
+			})
+			if err != nil {
+				app.log.Error("error connecting to mesh", "error", err.Error())
+				// TODO: Display error.
+				label.Set("Disconnected")
+				switchValue.Set(switchDisconnected)
+				return
+			}
 			switchValue.Set(switchConnected)
 		case switchConnected:
 			label.Set("Connected")

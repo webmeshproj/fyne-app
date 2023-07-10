@@ -111,6 +111,8 @@ func (app *App) displayPreferences() {
 			dialog.ShowError(err, app.main)
 			return
 		}
+		// Re-render profile selector.
+		app.reloadProfileSelector()
 	}
 	popup.Show()
 }
