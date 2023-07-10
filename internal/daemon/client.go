@@ -27,6 +27,7 @@ import (
 	"os/user"
 	"runtime"
 	"sync"
+	"sync/atomic"
 
 	v1 "github.com/webmeshproj/api/v1"
 	"github.com/webmeshproj/node/pkg/ctlcmd/config"
@@ -53,10 +54,10 @@ type Client interface {
 }
 
 type client struct {
-	*http.Client
+	cli        *http.Client
 	configPath string
 	config     *config.Config
-	connected  bool
+	connected  atomic.Bool
 	noDaemon   bool
 	mu         sync.Mutex
 	// Only valid when noDaemon is true.
@@ -79,7 +80,7 @@ func NewClient() Client {
 			}
 			return os.Getuid() == 0 && os.IsNotExist(err)
 		}(),
-		Client: &http.Client{
+		cli: &http.Client{
 			Transport: &http.Transport{
 				DialContext: dial,
 			},
@@ -112,7 +113,7 @@ func (c *client) Config() *config.Config {
 func (c *client) Connected() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.connected
+	return c.connected.Load()
 }
 
 func (c *client) Connect(ctx context.Context, opts ConnectOptions) error {
@@ -125,11 +126,13 @@ func (c *client) Connect(ctx context.Context, opts ConnectOptions) error {
 			if err != nil {
 				return fmt.Errorf("close existing store: %w", err)
 			}
+			c.connected.Store(false)
 		}
 		c.store, err = newStore(ctx, c.config, opts)
 		if err != nil {
 			return err
 		}
+		c.connected.Store(true)
 		return nil
 	}
 	req := &connectRequest{
@@ -138,7 +141,7 @@ func (c *client) Connect(ctx context.Context, opts ConnectOptions) error {
 	}
 	err := c.do(ctx, http.MethodPost, "/connect", req, nil)
 	if err == nil {
-		c.connected = true
+		c.connected.Store(true)
 	}
 	return err
 }
@@ -155,10 +158,11 @@ func (c *client) Disconnect(ctx context.Context) error {
 			return fmt.Errorf("close store: %w", err)
 		}
 		c.store = nil
+		c.connected.Store(false)
 	}
 	err := c.do(ctx, http.MethodPost, "/disconnect", nil, nil)
 	if err == nil {
-		c.connected = false
+		c.connected.Store(false)
 	}
 	return err
 }
@@ -191,7 +195,7 @@ func (c *client) do(ctx context.Context, method, path string, req, resp interfac
 	}
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("Accept", "application/json")
-	res, err := c.Do(r)
+	res, err := c.cli.Do(r)
 	if err != nil {
 		return fmt.Errorf("do request: %w", err)
 	}
