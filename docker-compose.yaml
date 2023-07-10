@@ -28,6 +28,7 @@ services:
       - --global.log-level=debug
       - --bootstrap.enabled
       - --bootstrap.default-network-policy=accept
+      - --bootstrap.ipv4-network=10.10.10.0/24
     ports:
       - 8443:8443
       - 51820:51820/udp
