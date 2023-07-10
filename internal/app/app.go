@@ -36,6 +36,7 @@ const appID = "com.webmeshproj.app"
 
 // App is the application.
 type App struct {
+	// App is the fyne application.
 	fyne.App
 	// main is the main window.
 	main fyne.Window
@@ -44,42 +45,35 @@ type App struct {
 	// this will be a pass-through client that executes the requested command
 	// directly.
 	cli daemon.Client
+	// log is the application logger.
+	log *slog.Logger
 }
 
 // New sets up and returns a new application.
 func New() *App {
-	log := slog.Default()
 	a := app.NewWithID(appID)
 	app := &App{
 		App:  a,
 		main: a.NewWindow("WebMesh"),
 		cli:  daemon.NewClient(),
+		log:  slog.Default(),
 	}
-	app.main.Resize(fyne.NewSize(400, 300))
-	// See if we are able to load the config file.
-	err := app.cli.LoadConfig(func() string {
-		return app.Preferences().StringWithFallback("config-file", config.DefaultConfigPath)
-	}())
-	if err != nil {
-		log.Error("error loading config", "error", err.Error())
-	}
-	// Set a close interceptor to make sure we disconnect on shutdown.
-	app.main.SetCloseIntercept(func() {
-		defer app.main.Close()
-		if app.cli.Connected() {
-			err := app.cli.Disconnect(context.Background())
-			if err != nil {
-				log.Error("error disconnecting from mesh", "error", err.Error())
-			}
-		}
-	})
-	app.setupCanvas()
+	app.setup()
 	app.main.Show()
 	return app
 }
 
-// setupCanvas sets up the initial state of the main canvas.
-func (app *App) setupCanvas() {
+// setupMain sets up the initial state of the app.
+func (app *App) setup() {
+	err := app.cli.LoadConfig(func() string {
+		return app.Preferences().StringWithFallback("config-file", config.DefaultConfigPath)
+	}())
+	if err != nil {
+		app.log.Error("error loading config", "error", err.Error())
+	}
+	app.main.Resize(fyne.NewSize(400, 300))
+	app.main.SetCloseIntercept(app.closeIntercept)
+	app.main.SetMainMenu(app.newMainMenu())
 	connectedText := binding.NewString()
 	connectedText.Set("Disconnected")
 	connectedLabel := widget.NewLabelWithData(connectedText)
@@ -92,31 +86,42 @@ func (app *App) setupCanvas() {
 	))
 }
 
+// onConnectChange fires when the value of the connected switch changes.
 func (app *App) onConnectChange(label binding.String, switchValue binding.Float) func() {
 	return func() {
-		log := slog.Default()
 		val, err := switchValue.Get()
 		if err != nil {
-			log.Error("error getting connected value", "error", err.Error())
+			app.log.Error("error getting connected value", "error", err.Error())
 			return
 		}
 		switch val {
 		case switchConnecting:
 			// Connect to the mesh if not connected and profile has changed.
-			log.Info("connecting to mesh")
+			app.log.Info("connecting to mesh")
 			label.Set("Connecting")
 			switchValue.Set(switchConnected)
 		case switchConnected:
 			label.Set("Connected")
 		case switchDisconnected:
 			// Disconnect from the mesh.
-			log.Info("disconnecting from mesh")
+			app.log.Info("disconnecting from mesh")
 			err := app.cli.Disconnect(context.Background())
 			if err != nil && !daemon.IsNotConnected(err) {
-				log.Error("error disconnecting from mesh", "error", err.Error())
+				app.log.Error("error disconnecting from mesh", "error", err.Error())
 				// Handle the error.
 			}
 			label.Set("Disconnected")
+		}
+	}
+}
+
+// closeIntercept is fired before the main window is closed.
+func (app *App) closeIntercept() {
+	defer app.main.Close()
+	if app.cli.Connected() {
+		err := app.cli.Disconnect(context.Background())
+		if err != nil {
+			app.log.Error("error disconnecting from mesh", "error", err.Error())
 		}
 	}
 }
