@@ -90,10 +90,12 @@ func (app *App) setupCanvas() {
 			return
 		}
 		switch val {
-		case switchConnecting, switchConnected:
+		case switchConnecting:
 			// Connect to the mesh if not connected and profile has changed.
 			slog.Default().Info("connecting to mesh")
+			connectedText.Set("Connecting")
 			connectSwitch.SetValue(switchConnected)
+		case switchConnected:
 			connectedText.Set("Connected")
 		case switchDisconnected:
 			// Disconnect from the mesh.
@@ -101,7 +103,7 @@ func (app *App) setupCanvas() {
 			err := app.cli.Disconnect(context.Background())
 			if err != nil && !daemon.IsNotConnected(err) {
 				slog.Default().Error("error disconnecting from mesh", "error", err.Error())
-				return
+				// Handle the error.
 			}
 			connectedText.Set("Disconnected")
 		}
