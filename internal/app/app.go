@@ -66,12 +66,12 @@ func New() *App {
 // setupMain sets up the initial state of the app.
 func (app *App) setup() {
 	err := app.cli.LoadConfig(func() string {
-		return app.Preferences().StringWithFallback("config-file", config.DefaultConfigPath)
+		return app.Preferences().StringWithFallback(preferenceConfigFile, config.DefaultConfigPath)
 	}())
 	if err != nil {
 		app.log.Error("error loading config", "error", err.Error())
 	}
-	app.main.Resize(fyne.NewSize(400, 300))
+	app.main.Resize(fyne.NewSize(800, 600))
 	app.main.SetCloseIntercept(app.closeIntercept)
 	app.main.SetMainMenu(app.newMainMenu())
 	connectedText := binding.NewString()

@@ -28,15 +28,12 @@ func IsNotConnected(err error) bool {
 type ConnectOptions struct {
 	// Profile is the profile to use for connecting.
 	Profile string `json:"profile"`
-	// ConnectTimeout is tjhe timeout to use for connecting in seconds.
-	// If 0, a default timeout of 30 seconds is used.
-	ConnectTimeout int `json:"connectTimeout"`
 	// InterfaceName is the name to set for the wireguard interface.
 	InterfaceName string `json:"interfaceName"`
-	// ListenPort is the port for wireguard to listen on.
-	ListenPort uint16 `json:"listenPort"`
 	// ForceTUN is whether to force the use of a TUN interface.
 	ForceTUN bool `json:"forceTUN"`
+	// ListenPort is the port for wireguard to listen on.
+	ListenPort uint16 `json:"listenPort"`
 	// RaftPort is the port to use for the Raft transport.
 	RaftPort uint16 `json:"raftPort"`
 	// GRPCPort is the port to use for the gRPC transport.
@@ -49,6 +46,9 @@ type ConnectOptions struct {
 	LocalDNS bool `json:"localDNS"`
 	// LocalDNSPort is the port to use for the local MeshDNS server.
 	LocalDNSPort uint16 `json:"localDNSPort"`
+	// ConnectTimeout is tjhe timeout to use for connecting in seconds.
+	// If 0, a default timeout of 30 seconds is used.
+	ConnectTimeout int `json:"connectTimeout"`
 }
 
 // ErrNotConnected is returned when the daemon is not connected to a mesh.
