@@ -58,6 +58,7 @@ func (m *webmeshHelper) Execute(args []string, r <-chan svc.ChangeRequest, chang
 		}
 	}()
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+loop:
 	for {
 		select {
 		case err := <-errs:
@@ -76,7 +77,7 @@ func (m *webmeshHelper) Execute(args []string, r <-chan svc.ChangeRequest, chang
 				if err := daemon.Shutdown(context.Background()); err != nil {
 					m.log.Error(1, err.Error())
 				}
-				break
+				break loop
 			default:
 				m.log.Error(1, fmt.Sprintf("unexpected control request #%d", c))
 			}
