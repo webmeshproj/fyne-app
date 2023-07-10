@@ -171,6 +171,10 @@ func (app *App) interfaceFormItem() *widget.FormItem {
 	entry := widget.NewEntryWithData(interfaceName)
 	entry.Wrapping = fyne.TextWrapOff
 	entry.SetPlaceHolder("Interface name")
+	if runtime.GOOS == "darwin" {
+		// This is immutable on macOS.
+		entry.Disable()
+	}
 	// Kernel interface is only supported on Linux and FreeBSD.
 	requiresTUN := runtime.GOOS != "linux" && runtime.GOOS != "freebsd"
 	forceTUNCheck := widget.NewCheckWithData("Force TUN", forceTUN)
