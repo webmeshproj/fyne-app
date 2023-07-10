@@ -26,16 +26,13 @@ func (app *App) reloadProfileSelector() {
 			contexts = append(contexts, ctx.Name)
 		}
 	}
-	contexts = append(contexts, "New Context")
+	if len(contexts) == 0 {
+		contexts = append(contexts, "---")
+	}
 	app.profiles.Options = contexts
 	app.profiles.Selected = defaultContext
 	app.profiles.OnChanged = func(selected string) {
-		if selected == "New Context" {
-			// TODO: New profile dialog.
-			currentProfile, err := app.currentProfile.Get()
-			if err == nil {
-				app.profiles.SetSelected(currentProfile)
-			}
+		if len(contexts) == 1 && contexts[0] == "---" {
 			return
 		}
 		// TODO: If already connected to a profile, prompt if okay to switch connections

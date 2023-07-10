@@ -27,6 +27,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/webmeshproj/node/pkg/ctlcmd/config"
 	"github.com/webmeshproj/node/pkg/net/wireguard"
@@ -84,15 +85,19 @@ func (app *App) setup() {
 	app.main.Resize(fyne.NewSize(600, 400))
 	app.main.SetCloseIntercept(app.closeIntercept)
 	app.main.SetMainMenu(app.newMainMenu())
+	app.reloadProfileSelector()
 
 	connectedText := binding.NewString()
 	connectedText.Set("Disconnected")
 	connectedLabel := widget.NewLabelWithData(connectedText)
 	connectSwitch, connected := newConnectSwitch()
 	connected.AddListener(binding.NewDataListener(app.onConnectChange(connectedText, connected)))
-	app.reloadProfileSelector()
+	editProfiles := widget.NewButton("Edit", func() {})
+	editProfiles.SetIcon(theme.SettingsIcon())
 	header := container.New(layout.NewHBoxLayout(),
-		connectSwitch, connectedLabel, layout.NewSpacer(), widget.NewLabel("Profile"), app.profiles,
+		connectSwitch, connectedLabel,
+		layout.NewSpacer(),
+		widget.NewLabel("Profile"), app.profiles, editProfiles,
 	)
 	app.main.SetContent(container.New(layout.NewVBoxLayout(),
 		header,
