@@ -16,6 +16,8 @@ limitations under the License.
 
 package app
 
+const noProfiles = "<no profiles>"
+
 func (app *App) reloadProfileSelector() {
 	contexts := make([]string, 0)
 	defaultContext := ""
@@ -27,12 +29,13 @@ func (app *App) reloadProfileSelector() {
 		}
 	}
 	if len(contexts) == 0 {
-		contexts = append(contexts, "---")
+		contexts = append(contexts, noProfiles)
+		defaultContext = noProfiles
 	}
 	app.profiles.Options = contexts
 	app.profiles.Selected = defaultContext
 	app.profiles.OnChanged = func(selected string) {
-		if len(contexts) == 1 && contexts[0] == "---" {
+		if len(contexts) == 1 && contexts[0] == noProfiles {
 			return
 		}
 		// TODO: If already connected to a profile, prompt if okay to switch connections

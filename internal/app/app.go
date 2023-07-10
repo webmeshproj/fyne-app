@@ -86,7 +86,6 @@ func (app *App) setup() {
 	app.main.SetCloseIntercept(app.closeIntercept)
 	app.main.SetMainMenu(app.newMainMenu())
 	app.reloadProfileSelector()
-
 	connectedText := binding.NewString()
 	connectedText.Set("Disconnected")
 	connectedLabel := widget.NewLabelWithData(connectedText)
@@ -116,16 +115,19 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 		switch val {
 		case switchConnecting:
 			// Connect to the mesh if not connected and profile has changed.
-			app.log.Info("connecting to mesh")
-			label.Set("Connecting")
 			profile, err := app.currentProfile.Get()
 			if err != nil {
 				app.log.Error("error getting profile", "error", err.Error())
 				// TODO: Display error.
-				label.Set("Disconnected")
+				switchValue.Set(switchDisconnected)
+				return
+			} else if profile == "" || profile == noProfiles {
+				app.log.Info("current configuration has no profiles")
 				switchValue.Set(switchDisconnected)
 				return
 			}
+			app.log.Info("connecting to mesh", "profile", profile)
+			label.Set("Connecting")
 			requiresTUN := runtime.GOOS != "linux" && runtime.GOOS != "freebsd"
 			err = app.cli.Connect(context.Background(), daemon.ConnectOptions{
 				Profile:       profile,

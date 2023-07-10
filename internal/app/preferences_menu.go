@@ -104,6 +104,7 @@ func (app *App) displayPreferences() {
 		connectTimeout, _ := connectTimeout.Get()
 		app.Preferences().SetString(preferenceConnectTimeout, connectTimeout)
 		// Reload configuration.
+		// TODO: Check if new config and we are currently connected. If so, disconnect and reconnect.
 		err = app.cli.LoadConfig(configFile)
 		if err != nil {
 			app.log.Error("error reloading configuration", "error", err.Error())
