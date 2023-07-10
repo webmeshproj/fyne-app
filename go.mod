@@ -7,6 +7,7 @@ require (
 	github.com/webmeshproj/api v0.1.4-0.20230630201234-2de73c181477
 	github.com/webmeshproj/node v0.0.8-0.20230709180752-b62e7fd78317
 	golang.org/x/exp v0.0.0-20230519143937-03e91628a987
+	golang.org/x/sys v0.8.0
 )
 
 require (
@@ -92,7 +93,6 @@ require (
 	golang.org/x/mobile v0.0.0-20211207041440-4e6c2922fdee // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	golang.zx2c4.com/wireguard v0.0.0-20230325221338-052af4a8072b // indirect
