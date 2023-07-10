@@ -1,0 +1,8 @@
+Website = "https://github.com/webmeshproj"
+
+[Details]
+Icon = ""
+Name = "Webmesh"
+ID = "com.webmeshproj.app"
+Version = "0.0.1"
+Build = 1

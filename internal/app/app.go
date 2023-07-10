@@ -48,6 +48,7 @@ type App struct {
 
 // New sets up and returns a new application.
 func New() *App {
+	log := slog.Default()
 	a := app.NewWithID(appID)
 	app := &App{
 		App:  a,
@@ -60,7 +61,7 @@ func New() *App {
 		return app.Preferences().StringWithFallback("config-file", config.DefaultConfigPath)
 	}())
 	if err != nil {
-		slog.Default().Error("error loading config", "error", err.Error())
+		log.Error("error loading config", "error", err.Error())
 	}
 	// Set a close interceptor to make sure we disconnect on shutdown.
 	app.main.SetCloseIntercept(func() {
@@ -68,7 +69,7 @@ func New() *App {
 		if app.cli.Connected() {
 			err := app.cli.Disconnect(context.Background())
 			if err != nil {
-				slog.Default().Error("error disconnecting from mesh", "error", err.Error())
+				log.Error("error disconnecting from mesh", "error", err.Error())
 			}
 		}
 	})
@@ -83,34 +84,39 @@ func (app *App) setupCanvas() {
 	connectedText.Set("Disconnected")
 	connectedLabel := widget.NewLabelWithData(connectedText)
 	connectSwitch, connected := newConnectSwitch()
-	connected.AddListener(binding.NewDataListener(func() {
-		val, err := connected.Get()
-		if err != nil {
-			slog.Default().Error("error getting connected value", "error", err.Error())
-			return
-		}
-		switch val {
-		case switchConnecting:
-			// Connect to the mesh if not connected and profile has changed.
-			slog.Default().Info("connecting to mesh")
-			connectedText.Set("Connecting")
-			connectSwitch.SetValue(switchConnected)
-		case switchConnected:
-			connectedText.Set("Connected")
-		case switchDisconnected:
-			// Disconnect from the mesh.
-			slog.Default().Info("disconnecting from mesh")
-			err := app.cli.Disconnect(context.Background())
-			if err != nil && !daemon.IsNotConnected(err) {
-				slog.Default().Error("error disconnecting from mesh", "error", err.Error())
-				// Handle the error.
-			}
-			connectedText.Set("Disconnected")
-		}
-	}))
+	connected.AddListener(binding.NewDataListener(app.onConnectChange(connectedText, connected)))
 	header := container.New(layout.NewHBoxLayout(), connectSwitch, connectedLabel, layout.NewSpacer())
 	app.main.SetContent(container.New(layout.NewVBoxLayout(),
 		header,
 		widget.NewSeparator(),
 	))
+}
+
+func (app *App) onConnectChange(label binding.String, switchValue binding.Float) func() {
+	return func() {
+		log := slog.Default()
+		val, err := switchValue.Get()
+		if err != nil {
+			log.Error("error getting connected value", "error", err.Error())
+			return
+		}
+		switch val {
+		case switchConnecting:
+			// Connect to the mesh if not connected and profile has changed.
+			log.Info("connecting to mesh")
+			label.Set("Connecting")
+			switchValue.Set(switchConnected)
+		case switchConnected:
+			label.Set("Connected")
+		case switchDisconnected:
+			// Disconnect from the mesh.
+			log.Info("disconnecting from mesh")
+			err := app.cli.Disconnect(context.Background())
+			if err != nil && !daemon.IsNotConnected(err) {
+				log.Error("error disconnecting from mesh", "error", err.Error())
+				// Handle the error.
+			}
+			label.Set("Disconnected")
+		}
+	}
 }
