@@ -43,3 +43,5 @@ func (app *App) reloadProfileSelector() {
 		app.currentProfile.Set(selected)
 	}
 }
+
+func (app *App) onEditProfiles() {}
