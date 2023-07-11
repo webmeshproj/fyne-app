@@ -92,6 +92,7 @@ func NewClient() Client {
 				DialContext: dial,
 			},
 		},
+		cancelConnect: func() {},
 	}
 }
 
@@ -135,19 +136,15 @@ func (c *client) Connecting() bool {
 }
 
 func (c *client) CancelConnect() {
-	if c.cancelConnect != nil {
-		c.cancelConnect()
-	}
+	c.cancelConnect()
 }
 
 func (c *client) Connect(ctx context.Context, opts ConnectOptions) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	ctx, c.cancelConnect = context.WithCancel(ctx)
-
 	c.connecting.Store(true)
 	defer c.connecting.Store(false)
-	defer func() { c.cancelConnect = nil }()
 	defer c.cancelConnect()
 	if c.noDaemon {
 		var err error
