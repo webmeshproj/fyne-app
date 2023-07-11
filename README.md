@@ -28,9 +28,12 @@ This will be the preferred method of communication for deployment targets.
 During development you can use the `--insecure` flag to allow world-usable access to the socket.
 
 The application itself takes an optional `--config` file to preload connection settings.
-The configuration included in this repository is for the local docker-compose setup.
-To use it, run
+The configuration included in this repository is for the local docker-compose setup (give or take an IP address).
+It may be easier to run the node in a VM to avoid network collisions with the host.
+To use a config file, run
 
 ```sh
 go run main.go --config config.yaml
 ```
+
+Otherwise, you'll be able to specify the connection settings in the GUI.

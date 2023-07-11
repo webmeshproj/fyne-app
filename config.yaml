@@ -3,7 +3,7 @@ kind: Config
 clusters:
   - name: local-cluster
     cluster:
-      server: 10.1.0.2:8443
+      server: 192.168.100.165:8443
       insecure: true
 users:
   - name: local-user
