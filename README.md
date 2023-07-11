@@ -22,7 +22,7 @@ The daemon can be started by running
 sudo go run main.go --daemon
 ```
 
-By default, on unix-like systems, the daemon will listen on a unix socket at `/var/run/webmeshd.sock`.
+By default, on unix-like systems, the daemon will listen on a unix socket at `/var/run/webmesh/webmesh.sock`.
 The permissions of the socket will be set to 770 with an ownership of `root:root` or `root:webmesh` if the group exists.
 This will be the preferred method of communication for deployment targets.
 During development you can use the `--insecure` flag to allow world-usable access to the socket.
