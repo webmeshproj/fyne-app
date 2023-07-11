@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"path/filepath"
 
 	"github.com/webmeshproj/app/internal/app"
 	"github.com/webmeshproj/app/internal/daemon"
@@ -33,5 +34,13 @@ func main() {
 		daemon.Run()
 		return
 	}
-	app.New(*configFile).Run()
+	config := *configFile
+	if config != "" {
+		var err error
+		config, err = filepath.Abs(config)
+		if err != nil {
+			panic(err)
+		}
+	}
+	app.New(config).Run()
 }

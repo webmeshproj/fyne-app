@@ -40,19 +40,11 @@ func (app *App) reloadProfileSelector() {
 	selected := ""
 	config := app.cli.Config()
 	if len(config.Contexts) == 0 {
-		app.currentProfile.Set("")
 		selected = noProfiles
 	} else if config.CurrentContext != "" {
-		app.currentProfile.Set(config.CurrentContext)
 		selected = config.CurrentContext
 	} else {
-		app.currentProfile.Set(config.Contexts[0].Name)
 		selected = config.Contexts[0].Name
-	}
-	// If a profile is not already selected, store the current one.
-	current, err := app.currentProfile.Get()
-	if err == nil && current == "" {
-		app.currentProfile.Set(selected)
 	}
 	profiles := app.profileOptions()
 	app.profiles.Options = profiles
@@ -65,6 +57,11 @@ func (app *App) reloadProfileSelector() {
 		// and reconnect.
 		app.currentProfile.Set(selected)
 	}
+	// If a profile is not already selected, store the current one.
+	current, err := app.currentProfile.Get()
+	if err != nil || (current == "" || current == noProfiles) {
+		app.profiles.SetSelected(selected)
+	}
 }
 
 func (app *App) onAddProfile() {
@@ -72,8 +69,8 @@ func (app *App) onAddProfile() {
 }
 
 func (app *App) onEditProfile() {
-	current, err := app.currentProfile.Get()
-	if err != nil || (current == "" || current == noProfiles) {
+	current, _ := app.currentProfile.Get()
+	if current == "" || current == noProfiles {
 		app.log.Info("no profile selected to edit")
 		return
 	}
@@ -109,9 +106,11 @@ func (app *App) showProfileEditor(name string, isNew bool) {
 		if s == "" {
 			return errors.New("name is required")
 		}
-		for _, ctx := range currentConfig.Contexts {
-			if ctx.Name == s {
-				return fmt.Errorf("profile with name %q already exists", s)
+		if isNew {
+			for _, ctx := range currentConfig.Contexts {
+				if ctx.Name == s {
+					return fmt.Errorf("profile with name %q already exists", s)
+				}
 			}
 		}
 		return nil
