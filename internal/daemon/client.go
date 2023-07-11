@@ -45,6 +45,11 @@ type Client interface {
 	Config() *config.Config
 	// Connected returns true if the client is connected to the mesh.
 	Connected() bool
+	// Connecting returns true if the client is currently connecting to the
+	// mesh.
+	Connecting() bool
+	// CancelConnect cancels a connection attempt.
+	CancelConnect()
 	// Connect connects to the mesh.
 	Connect(ctx context.Context, opts ConnectOptions) error
 	// Disconnect disconnects from the mesh.
@@ -54,12 +59,14 @@ type Client interface {
 }
 
 type client struct {
-	cli        *http.Client
-	configPath string
-	config     *config.Config
-	connected  atomic.Bool
-	noDaemon   bool
-	mu         sync.Mutex
+	cli           *http.Client
+	configPath    string
+	config        *config.Config
+	connected     atomic.Bool
+	connecting    atomic.Bool
+	cancelConnect context.CancelFunc
+	noDaemon      bool
+	mu            sync.Mutex
 	// Only valid when noDaemon is true.
 	store store.Store
 }
@@ -120,14 +127,28 @@ func (c *client) Config() *config.Config {
 }
 
 func (c *client) Connected() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	return c.connected.Load()
+}
+
+func (c *client) Connecting() bool {
+	return c.connecting.Load()
+}
+
+func (c *client) CancelConnect() {
+	if c.cancelConnect != nil {
+		c.cancelConnect()
+	}
 }
 
 func (c *client) Connect(ctx context.Context, opts ConnectOptions) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	ctx, c.cancelConnect = context.WithCancel(ctx)
+
+	c.connecting.Store(true)
+	defer c.connecting.Store(false)
+	defer func() { c.cancelConnect = nil }()
+	defer c.cancelConnect()
 	if c.noDaemon {
 		var err error
 		if c.store != nil {

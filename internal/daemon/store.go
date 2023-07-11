@@ -32,12 +32,15 @@ func newStore(ctx context.Context, cfg *config.Config, opts ConnectOptions) (sto
 	if err != nil {
 		return nil, fmt.Errorf("new store: %w", err)
 	}
-	err = st.Open()
-	if err != nil {
-		return nil, fmt.Errorf("open store: %w", err)
+	if opts.ConnectTimeout <= 0 {
+		opts.ConnectTimeout = 30
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Second*time.Duration(opts.ConnectTimeout))
 	defer cancel()
+	err = st.Open(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("open store: %w", err)
+	}
 	<-st.ReadyNotify(ctx)
 	if ctx.Err() != nil {
 		err = st.Close()
@@ -62,10 +65,6 @@ func newStoreOptions(cfg *config.Config, opts ConnectOptions) *store.Options {
 	storeOpts.WireGuard.ListenPort = int(opts.ListenPort)
 	storeOpts.WireGuard.ForceTUN = opts.ForceTUN
 	storeOpts.WireGuard.PersistentKeepAlive = time.Second * 10
-	if opts.ConnectTimeout <= 0 {
-		opts.ConnectTimeout = 30
-	}
-	storeOpts.Mesh.JoinTimeout = time.Second * time.Duration(opts.ConnectTimeout)
 	ctx := cfg.GetContext(opts.Profile)
 	user := cfg.GetUser(ctx.User)
 	if user.BasicAuthPassword != "" && user.BasicAuthUsername != "" {
@@ -87,6 +86,7 @@ func newStoreOptions(cfg *config.Config, opts ConnectOptions) *store.Options {
 		}
 	}
 	cluster := cfg.GetCluster(ctx.Cluster)
+	storeOpts.Mesh.JoinAddress = cluster.Server
 	if cluster.Insecure {
 		storeOpts.TLS.Insecure = true
 	} else {

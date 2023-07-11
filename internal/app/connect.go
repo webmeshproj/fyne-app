@@ -23,8 +23,9 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2/data/binding"
-	"github.com/webmeshproj/app/internal/daemon"
 	"github.com/webmeshproj/node/pkg/net/wireguard"
+
+	"github.com/webmeshproj/app/internal/daemon"
 )
 
 // onConnectChange fires when the value of the connected switch changes.
@@ -52,51 +53,59 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			app.log.Info("connecting to mesh", "profile", profile)
 			label.Set("Connecting")
 			requiresTUN := runtime.GOOS != "linux" && runtime.GOOS != "freebsd"
-			err = app.cli.Connect(context.Background(), daemon.ConnectOptions{
-				Profile:       profile,
-				InterfaceName: app.Preferences().StringWithFallback(preferenceInterfaceName, wireguard.DefaultInterfaceName),
-				ForceTUN:      app.Preferences().BoolWithFallback(preferenceForceTUN, requiresTUN),
-				ListenPort: func() uint16 {
-					v, _ := strconv.ParseUint(app.Preferences().StringWithFallback(preferenceWireGuardPort, "51820"), 10, 16)
-					return uint16(v)
-				}(),
-				RaftPort: func() uint16 {
-					v, _ := strconv.ParseUint(app.Preferences().StringWithFallback(preferenceRaftPort, "9443"), 10, 16)
-					return uint16(v)
-				}(),
-				GRPCPort: func() uint16 {
-					v, _ := strconv.ParseUint(app.Preferences().StringWithFallback(preferenceGRPCPort, "8443"), 10, 16)
-					return uint16(v)
-				}(),
-				NoIPv4: app.Preferences().BoolWithFallback(preferenceDisableIPv4, false),
-				NoIPv6: app.Preferences().BoolWithFallback(preferenceDisableIPv6, false),
-				ConnectTimeout: func() int {
-					d, _ := time.ParseDuration(app.Preferences().StringWithFallback(preferenceConnectTimeout, "30s"))
-					return int(d.Seconds())
-				}(),
-				// TODO:
-				LocalDNS:     false,
-				LocalDNSPort: 0,
-			})
-			if err != nil {
-				app.log.Error("error connecting to mesh", "error", err.Error())
-				// TODO: Display error.
-				label.Set("Disconnected")
-				switchValue.Set(switchDisconnected)
-				return
-			}
-			switchValue.Set(switchConnected)
+			go func() {
+				err = app.cli.Connect(context.Background(), daemon.ConnectOptions{
+					Profile:       profile,
+					InterfaceName: app.Preferences().StringWithFallback(preferenceInterfaceName, wireguard.DefaultInterfaceName),
+					ForceTUN:      app.Preferences().BoolWithFallback(preferenceForceTUN, requiresTUN),
+					ListenPort: func() uint16 {
+						v, _ := strconv.ParseUint(app.Preferences().StringWithFallback(preferenceWireGuardPort, "51820"), 10, 16)
+						return uint16(v)
+					}(),
+					RaftPort: func() uint16 {
+						v, _ := strconv.ParseUint(app.Preferences().StringWithFallback(preferenceRaftPort, "9443"), 10, 16)
+						return uint16(v)
+					}(),
+					GRPCPort: func() uint16 {
+						v, _ := strconv.ParseUint(app.Preferences().StringWithFallback(preferenceGRPCPort, "8443"), 10, 16)
+						return uint16(v)
+					}(),
+					NoIPv4: app.Preferences().BoolWithFallback(preferenceDisableIPv4, false),
+					NoIPv6: app.Preferences().BoolWithFallback(preferenceDisableIPv6, false),
+					ConnectTimeout: func() int {
+						d, _ := time.ParseDuration(app.Preferences().StringWithFallback(preferenceConnectTimeout, "30s"))
+						return int(d.Seconds())
+					}(),
+					// TODO:
+					LocalDNS:     false,
+					LocalDNSPort: 0,
+				})
+				if err != nil {
+					app.log.Error("error connecting to mesh", "error", err.Error())
+					// TODO: Display error.
+					label.Set("Disconnected")
+					switchValue.Set(switchDisconnected)
+					return
+				}
+				switchValue.Set(switchConnected)
+			}()
 		case switchConnected:
 			label.Set("Connected")
 		case switchDisconnected:
 			// Disconnect from the mesh.
 			app.log.Info("disconnecting from mesh")
-			err := app.cli.Disconnect(context.Background())
-			if err != nil && !daemon.IsNotConnected(err) {
-				app.log.Error("error disconnecting from mesh", "error", err.Error())
-				// Handle the error.
+			if app.cli.Connecting() {
+				app.log.Info("cancelling in-progress connection")
+				app.cli.CancelConnect()
 			}
-			label.Set("Disconnected")
+			go func() {
+				err := app.cli.Disconnect(context.Background())
+				if err != nil && !daemon.IsNotConnected(err) {
+					app.log.Error("error disconnecting from mesh", "error", err.Error())
+					// Handle the error.
+				}
+				label.Set("Disconnected")
+			}()
 		}
 	}
 }

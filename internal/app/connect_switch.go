@@ -50,5 +50,8 @@ func (t *connectSwitch) Tapped(_ *fyne.PointEvent) {
 		t.SetValue(switchConnecting)
 	case switchConnected:
 		t.SetValue(switchDisconnected)
+	case switchConnecting:
+		// Trigger the listener to cancel the connection.
+		t.SetValue(switchDisconnected)
 	}
 }
