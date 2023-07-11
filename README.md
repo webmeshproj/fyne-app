@@ -15,7 +15,7 @@ In the future it may be extended to include support for server functionality.
 ## Building and Running
 
 To build the application, run `go build` in the root of this repository or you can use `go run main.go` to build and run it in one step.
-Since the application needs to manage network interfaces and routes, a privleged daemon is required if the app is not run as root.
+Since the application needs to manage network interfaces and routes, a privileged daemon is required if the app is not run as root.
 The daemon can be started by running
 
 ```sh
