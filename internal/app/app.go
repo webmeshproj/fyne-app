@@ -72,12 +72,11 @@ func New(configFile string) *App {
 
 // setupMain sets up the initial state of the app.
 func (app *App) setup(configFile string) {
-	defaultConfig := config.DefaultConfigPath
-	if configFile != "" {
-		defaultConfig = configFile
-	}
 	err := app.cli.LoadConfig(func() string {
-		return app.Preferences().StringWithFallback(preferenceConfigFile, defaultConfig)
+		if configFile != "" {
+			return configFile
+		}
+		return app.Preferences().StringWithFallback(preferenceConfigFile, config.DefaultConfigPath)
 	}())
 	if err != nil {
 		app.log.Error("error loading config", "error", err.Error())

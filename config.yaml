@@ -1,0 +1,14 @@
+apiVersion: webmesh.io/v1
+kind: Config
+clusters:
+  - name: local-cluster
+    cluster:
+      server: 10.1.0.2:8443
+      insecure: true
+users:
+  - name: local-user
+contexts:
+  - name: local
+    context:
+      cluster: local-cluster
+      user: local-user
