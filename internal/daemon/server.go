@@ -37,20 +37,22 @@ import (
 // Server is the daemon server.
 type Server struct {
 	*http.Server
-	log   *slog.Logger
-	store store.Store
-	mu    sync.Mutex
+	insecure bool
+	log      *slog.Logger
+	store    store.Store
+	mu       sync.Mutex
 }
 
 // NewServer returns a new daemon server.
-func NewServer() *Server {
+func NewServer(insecure bool) *Server {
 	log := slog.Default().With("component", "daemon")
 	s := &Server{
 		Server: &http.Server{
 			ReadTimeout:  time.Second * 5,
 			WriteTimeout: time.Second * 5,
 		},
-		log: log,
+		insecure: insecure,
+		log:      log,
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/connect", requirePOST(log, s.handleConnect))
@@ -63,15 +65,20 @@ func NewServer() *Server {
 
 // ListenAndServe listens on the unix socket and serves requests.
 func (s *Server) ListenAndServe() error {
-	// Mask the last bit so the socket is only accessible by the owner
-	// and webmesh group.
-	syscall.Umask(0007)
-	l, err := listen()
+	if s.insecure {
+		// Mask the last 3 bits so the socket is accessible by everyone.
+		syscall.Umask(0000)
+	} else {
+		// Mask the last bit so the socket is only accessible by the owner
+		// and webmesh group.
+		syscall.Umask(0007)
+	}
+	l, err := listen(s.insecure)
 	if err != nil {
 		return fmt.Errorf("listen unix socket: %w", err)
 	}
 	defer l.Close()
-	if runtime.GOOS != "windows" {
+	if runtime.GOOS != "windows" && !s.insecure {
 		// Change the socket ownership to the webmesh group if it exists.
 		group, err := user.LookupGroup("webmesh")
 		if err == nil {

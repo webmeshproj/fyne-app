@@ -19,6 +19,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"os/user"
@@ -30,7 +31,7 @@ import (
 var socketPath = getSocketPath()
 
 // listen returns a new listener for the daemon socket.
-func listen() (net.Listener, error) {
+func listen(insecure bool) (net.Listener, error) {
 	if runtime.GOOS != "windows" {
 		// Ensure the socket directory exists.
 		sockDir := filepath.Dir(socketPath)
@@ -38,7 +39,11 @@ func listen() (net.Listener, error) {
 			return nil, err
 		}
 		// Ensure the socket directory has the correct permissions.
-		if err := os.Chmod(sockDir, 0750); err != nil {
+		var dirMode fs.FileMode = 0750
+		if insecure {
+			dirMode = 0755
+		}
+		if err := os.Chmod(sockDir, dirMode); err != nil {
 			return nil, fmt.Errorf("chmod unix socket directory: %w", err)
 		}
 		// Change the group ownership to the webmesh group if it exists.

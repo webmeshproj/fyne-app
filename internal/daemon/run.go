@@ -29,8 +29,8 @@ import (
 )
 
 // Run runs the helper daemon.
-func Run() {
-	server := NewServer()
+func Run(insecure bool) {
+	server := NewServer(insecure)
 	log := slog.Default()
 	go func() {
 		log.Info("listening for daemon requests", "path", getSocketPath())

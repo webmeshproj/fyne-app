@@ -27,14 +27,14 @@ import (
 
 const svcName = "webmesh-helper"
 
-func Run() {
+func Run(insecure bool) {
 	elog, err := eventlog.Open(svcName)
 	if err != nil {
 		return
 	}
 	defer elog.Close()
 	elog.Info(1, fmt.Sprintf("starting %s service", svcName))
-	err = svc.Run(svcName, &webmeshHelper{log: elog})
+	err = svc.Run(svcName, &webmeshHelper{log: elog, insecure: insecure})
 	if err != nil {
 		elog.Error(1, fmt.Sprintf("%s service failed: %v", svcName, err))
 		return
@@ -43,14 +43,15 @@ func Run() {
 }
 
 type webmeshHelper struct {
-	log debug.Log
+	log      debug.Log
+	insecure bool
 }
 
 func (m *webmeshHelper) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
 	errs := make(chan error)
-	daemon := NewServer()
+	daemon := NewServer(m.insecure)
 	go func() {
 		defer close(errs)
 		if err := daemon.ListenAndServe(); err != nil {

@@ -27,11 +27,12 @@ import (
 func main() {
 	configFile := flag.String("config", "", "Path to a configuration file to preload")
 	helperDaemon := flag.Bool("daemon", false, "Run the helper daemon")
+	daemonInsecure := flag.Bool("insecure", false, "Run the helper daemon in insecure mode")
 	flag.Parse()
 	// TODO: set up logging
 	// Should tee to a file in the user's home directory when running the app
 	if *helperDaemon {
-		daemon.Run()
+		daemon.Run(*daemonInsecure)
 		return
 	}
 	config := *configFile
