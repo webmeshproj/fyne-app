@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -47,8 +48,17 @@ func validateConfigFile() error {
 	}
 	if cfgFile == "" {
 		return errors.New("A configuration file is required")
-	} else if cfgFile != config.DefaultConfigPath {
-		_, err := os.Stat(cfgFile)
+	}
+	_, err = os.Stat(cfgFile)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("Configuration file is invalid: %w", err)
+	} else if os.IsNotExist(err) {
+		// Try to touch the file to ensure it can be created.
+		err = os.MkdirAll(filepath.Dir(cfgFile), 0700)
+		if err != nil {
+			return fmt.Errorf("Configuration file is invalid: %w", err)
+		}
+		err = config.New().WriteTo(cfgFile)
 		if err != nil {
 			return fmt.Errorf("Configuration file is invalid: %w", err)
 		}

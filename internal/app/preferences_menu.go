@@ -105,6 +105,7 @@ func (app *App) displayPreferences() {
 		app.Preferences().SetString(preferenceConnectTimeout, connectTimeout)
 		// Reload configuration.
 		// TODO: Check if new config and we are currently connected. If so, disconnect and reconnect.
+		app.log.Info("reloading configuration", "file", configFile)
 		err = app.cli.LoadConfig(configFile)
 		if err != nil {
 			app.log.Error("error reloading configuration", "error", err.Error())
@@ -131,7 +132,7 @@ func (app *App) configFileFormItem() *widget.FormItem {
 			return nil
 		}
 		_, err := os.Stat(s)
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		return nil
@@ -159,7 +160,6 @@ func (app *App) configFileFormItem() *widget.FormItem {
 				fileDialog.SetLocation(lister)
 			}
 		}
-		fileDialog.SetFilter(storage.NewExtensionFileFilter([]string{".yaml", ".yml"}))
 		fileDialog.Show()
 	})
 	dialogSelect.SetIcon(theme.FileIcon())

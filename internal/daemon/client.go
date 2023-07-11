@@ -40,8 +40,8 @@ type Client interface {
 	LoadConfig(path string) error
 	// SaveConfig saves the client configuration to the given path.
 	SaveConfig(path string) error
-	// Config returns the current client configuration, or nil if none
-	// is loaded.
+	// Config returns the current client configuration, or a new empty
+	// configuration if none has been loaded.
 	Config() *config.Config
 	// Connected returns true if the client is connected to the mesh.
 	Connected() bool
@@ -93,8 +93,12 @@ func (c *client) LoadConfig(path string) error {
 	defer c.mu.Unlock()
 	var err error
 	c.configPath = path
-	c.config, err = config.FromFile(path)
-	return err
+	conf, err := config.FromFile(path)
+	if err != nil {
+		return err
+	}
+	c.config = conf
+	return nil
 }
 
 func (c *client) SaveConfig(path string) error {
@@ -107,6 +111,11 @@ func (c *client) SaveConfig(path string) error {
 }
 
 func (c *client) Config() *config.Config {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.config == nil {
+		c.config = config.New()
+	}
 	return c.config
 }
 

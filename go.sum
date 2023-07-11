@@ -508,10 +508,10 @@ github.com/vishvananda/netns v0.0.0-20190625233234-7109fa855b0f h1:nBX3nTcmxEtHS
 github.com/vishvananda/netns v0.0.0-20190625233234-7109fa855b0f/go.mod h1:ZjcWmFBXmLKZu9Nxj3WKYEafiSqer2rnvPr0en9UNpI=
 github.com/webmeshproj/api v0.1.4-0.20230630201234-2de73c181477 h1:yl3jjvuS5vrjIS3cAQdrkOS0neOwFSIcBy8KqentgJ8=
 github.com/webmeshproj/api v0.1.4-0.20230630201234-2de73c181477/go.mod h1:ymJL82yEGc/xw880DAb65pBJShkBqkKOl3sCOBq7NVk=
-github.com/webmeshproj/node v0.0.8-0.20230709180752-b62e7fd78317 h1:v1KMCm1firAc/IXM1rrYqYLPehLYKY67t/mm+Pj4Fo8=
-github.com/webmeshproj/node v0.0.8-0.20230709180752-b62e7fd78317/go.mod h1:ni/iIAw2wzP5gfnlT8l8rSaZUJkyBM64VIerQ2usSZ0=
-github.com/webmeshproj/node v0.0.8-0.20230710215104-701f02ddceb3 h1:djsYlDv5v+3jkG/DiWgUUawxOfnLv+Dr8q79awYEiEU=
-github.com/webmeshproj/node v0.0.8-0.20230710215104-701f02ddceb3/go.mod h1:ni/iIAw2wzP5gfnlT8l8rSaZUJkyBM64VIerQ2usSZ0=
+github.com/webmeshproj/node v0.0.8-0.20230710234019-10c2409ef99f h1:ujuQsXVear+rMS8YSIK1v04CwDBXNt+ZnlUetzht3bQ=
+github.com/webmeshproj/node v0.0.8-0.20230710234019-10c2409ef99f/go.mod h1:ni/iIAw2wzP5gfnlT8l8rSaZUJkyBM64VIerQ2usSZ0=
+github.com/webmeshproj/node v0.0.8-0.20230711023745-cdef5b330c21 h1:enozzsQ5PsenM7bNm8PrvxkabXq3LU2PCtXilOGaA50=
+github.com/webmeshproj/node v0.0.8-0.20230711023745-cdef5b330c21/go.mod h1:ni/iIAw2wzP5gfnlT8l8rSaZUJkyBM64VIerQ2usSZ0=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

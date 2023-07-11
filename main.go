@@ -24,6 +24,7 @@ import (
 )
 
 func main() {
+	configFile := flag.String("config", "", "Path to a configuration file to preload")
 	helperDaemon := flag.Bool("daemon", false, "Run the helper daemon")
 	flag.Parse()
 	// TODO: set up logging
@@ -32,5 +33,5 @@ func main() {
 		daemon.Run()
 		return
 	}
-	app.New().Run()
+	app.New(*configFile).Run()
 }

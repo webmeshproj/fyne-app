@@ -55,7 +55,7 @@ type App struct {
 }
 
 // New sets up and returns a new application.
-func New() *App {
+func New(configFile string) *App {
 	a := app.NewWithID(appID)
 	app := &App{
 		App:            a,
@@ -65,20 +65,24 @@ func New() *App {
 		cli:            daemon.NewClient(),
 		log:            slog.Default(),
 	}
-	app.setup()
+	app.setup(configFile)
 	app.main.Show()
 	return app
 }
 
 // setupMain sets up the initial state of the app.
-func (app *App) setup() {
+func (app *App) setup(configFile string) {
+	defaultConfig := config.DefaultConfigPath
+	if configFile != "" {
+		defaultConfig = configFile
+	}
 	err := app.cli.LoadConfig(func() string {
-		return app.Preferences().StringWithFallback(preferenceConfigFile, config.DefaultConfigPath)
+		return app.Preferences().StringWithFallback(preferenceConfigFile, defaultConfig)
 	}())
 	if err != nil {
 		app.log.Error("error loading config", "error", err.Error())
 	}
-	app.main.Resize(fyne.NewSize(600, 400))
+	app.main.Resize(fyne.NewSize(800, 600))
 	app.main.SetCloseIntercept(app.closeIntercept)
 	app.main.SetMainMenu(app.newMainMenu())
 	app.reloadProfileSelector()
@@ -87,12 +91,13 @@ func (app *App) setup() {
 	connectedLabel := widget.NewLabelWithData(connectedText)
 	connectSwitch, connected := newConnectSwitch()
 	connected.AddListener(binding.NewDataListener(app.onConnectChange(connectedText, connected)))
-	editProfiles := widget.NewButton("Edit", app.onEditProfiles)
-	editProfiles.SetIcon(theme.SettingsIcon())
+	editProfile := widget.NewButtonWithIcon("Edit", theme.SettingsIcon(), app.onEditProfile)
+	addProfile := widget.NewButtonWithIcon("Add", theme.ContentAddIcon(), app.onAddProfile)
+	addProfile.Importance = widget.HighImportance
 	header := container.New(layout.NewHBoxLayout(),
 		connectSwitch, connectedLabel,
 		layout.NewSpacer(),
-		widget.NewLabel("Profile"), app.profiles, editProfiles,
+		widget.NewLabel("Profile"), app.profiles, editProfile, addProfile,
 	)
 	app.main.SetContent(container.New(layout.NewVBoxLayout(),
 		header,

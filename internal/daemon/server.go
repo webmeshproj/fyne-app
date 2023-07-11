@@ -56,6 +56,7 @@ func NewServer() *Server {
 	mux.HandleFunc("/connect", requirePOST(log, s.handleConnect))
 	mux.HandleFunc("/disconnect", requirePOST(log, s.handleDisconnect))
 	mux.HandleFunc("/interface-metrics", s.handleInterfaceMetrics)
+	mux.HandleFunc("/query-store", requirePOST(log, s.handleQueryStore))
 	s.Handler = logRequest(log, mux)
 	return s
 }
@@ -175,6 +176,9 @@ func (s *Server) handleInterfaceMetrics(w http.ResponseWriter, r *http.Request) 
 		s.log.Error("error encoding interface metrics", "error", err.Error())
 	}
 }
+
+// handleQueryStore handles a request to query the mesh store.
+func (s *Server) handleQueryStore(w http.ResponseWriter, r *http.Request) {}
 
 // returnOK returns an OK response.
 func (s *Server) returnOK(w http.ResponseWriter) {
