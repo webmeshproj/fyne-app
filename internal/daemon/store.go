@@ -68,12 +68,14 @@ func newStoreOptions(cfg *config.Config, opts ConnectOptions) *store.Options {
 	ctx := cfg.GetContext(opts.Profile)
 	user := cfg.GetUser(ctx.User)
 	if user.BasicAuthPassword != "" && user.BasicAuthUsername != "" {
+		storeOpts.Mesh.NodeID = user.BasicAuthUsername
 		storeOpts.Auth.Basic = &store.BasicAuthOptions{
 			Username: user.BasicAuthUsername,
 			Password: user.BasicAuthPassword,
 		}
 	}
 	if user.LDAPPassword != "" && user.LDAPUsername != "" {
+		storeOpts.Mesh.NodeID = user.LDAPUsername
 		storeOpts.Auth.LDAP = &store.LDAPAuthOptions{
 			Username: user.LDAPUsername,
 			Password: user.LDAPPassword,
