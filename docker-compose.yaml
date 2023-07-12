@@ -1,31 +1,16 @@
 version: '3'
 
-networks:
-  simple:
-    ipam:
-      driver: default
-      config:
-        - subnet: 10.1.0.0/24
-          gateway: 10.1.0.1
-
 services:
-
   bootstrap-node:
     image: ${IMAGE:-ghcr.io/webmeshproj/node:latest}
-    build:
-      context: ../..
-      dockerfile: Dockerfile
-    networks:
-      simple:
-        ipv4_address: 10.1.0.2
+    network_mode: host
     hostname: bootstrap-node
     entrypoint:
       - /node
       - --global.insecure
       - --global.no-ipv6
-      - --global.detect-endpoints
-      - --global.detect-private-endpoints
       - --global.log-level=debug
+      - --global.primary-endpoint=192.168.100.165
       - --bootstrap.enabled
       - --bootstrap.default-network-policy=accept
       - --bootstrap.ipv4-network=10.10.10.0/24
@@ -33,3 +18,4 @@ services:
       - 8443:8443
       - 51820:51820/udp
     cap_add: ["NET_ADMIN", "NET_RAW", "SYS_MODULE"]
+
