@@ -28,6 +28,18 @@ import (
 	"github.com/webmeshproj/app/internal/daemon"
 )
 
+var (
+	connectedInterface = binding.NewString()
+	totalSentBytes     = binding.NewString()
+	totalRecvBytes     = binding.NewString()
+)
+
+func resetConnectedValues() {
+	connectedInterface.Set("---")
+	totalSentBytes.Set("---")
+	totalRecvBytes.Set("---")
+}
+
 // onConnectChange fires when the value of the connected switch changes.
 func (app *App) onConnectChange(label binding.String, switchValue binding.Float) func() {
 	return func() {
@@ -91,8 +103,38 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			}()
 		case switchConnected:
 			label.Set("Connected")
+			ctx := context.Background()
+			metrics, err := app.cli.InterfaceMetrics(ctx)
+			if err != nil {
+				app.log.Error("error getting interface metrics", "error", err.Error())
+				return
+			}
+			connectedInterface.Set(metrics.DeviceName)
+			ctx, app.cancelMetrics = context.WithCancel(ctx)
+			go func() {
+				t := time.NewTicker(time.Second * 5)
+				defer t.Stop()
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case <-t.C:
+						metrics, err = app.cli.InterfaceMetrics(ctx)
+						if err != nil {
+							app.log.Error("error getting interface metrics", "error", err.Error())
+							continue
+						}
+						totalSentBytes.Set(bytesString(int(metrics.TotalTransmitBytes)))
+						totalRecvBytes.Set(bytesString(int(metrics.TotalReceiveBytes)))
+					}
+				}
+			}()
 		case switchDisconnected:
 			// Disconnect from the mesh.
+			if app.cancelMetrics != nil {
+				app.cancelMetrics()
+			}
+			defer resetConnectedValues()
 			app.log.Info("disconnecting from mesh")
 			if app.cli.Connecting() {
 				app.log.Info("cancelling in-progress connection")
@@ -108,4 +150,15 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			}()
 		}
 	}
+}
+
+func bytesString(n int) string {
+	if n < 1024 {
+		return strconv.Itoa(n) + " B"
+	} else if n < 1024*1024 {
+		return strconv.Itoa(n/1024) + " KB"
+	} else if n < 1024*1024*1024 {
+		return strconv.Itoa(n/1024/1024) + " MB"
+	}
+	return strconv.Itoa(n/1024/1024/1024) + " GB"
 }

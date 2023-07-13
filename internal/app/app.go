@@ -50,6 +50,8 @@ type App struct {
 	// this will be a pass-through client that executes the requested command
 	// directly.
 	cli daemon.Client
+	// cancelMetrics is the cancel function for stopping the metrics updater.
+	cancelMetrics context.CancelFunc
 	// log is the application logger.
 	log *slog.Logger
 }
@@ -98,9 +100,25 @@ func (app *App) setup(configFile string) {
 		layout.NewSpacer(),
 		widget.NewLabel("Profile"), app.profiles, editProfile, addProfile,
 	)
+	ifaceLabel := widget.NewLabel("Interface")
+	sentLabel := widget.NewLabel("Total Sent")
+	rcvdLabel := widget.NewLabel("Total Received")
+	ifaceLabel.TextStyle.Bold = true
+	sentLabel.TextStyle.Bold = true
+	rcvdLabel.TextStyle.Bold = true
+	body := container.New(layout.NewVBoxLayout(),
+		container.New(layout.NewHBoxLayout(),
+			ifaceLabel, widget.NewLabelWithData(connectedInterface), layout.NewSpacer()),
+		container.New(layout.NewHBoxLayout(),
+			sentLabel, widget.NewLabelWithData(totalSentBytes), layout.NewSpacer()),
+		container.New(layout.NewHBoxLayout(),
+			rcvdLabel, widget.NewLabelWithData(totalRecvBytes), layout.NewSpacer()),
+	)
+	resetConnectedValues()
 	app.main.SetContent(container.New(layout.NewVBoxLayout(),
 		header,
 		widget.NewSeparator(),
+		body,
 	))
 }
 

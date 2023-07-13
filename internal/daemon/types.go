@@ -60,7 +60,7 @@ type daemonError struct {
 }
 
 // Error returns the error message.
-func (e daemonError) Error() string {
+func (e *daemonError) Error() string {
 	return e.Message
 }
 
