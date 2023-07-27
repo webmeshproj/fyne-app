@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/webmeshproj/node/pkg/ctlcmd/config"
-	"github.com/webmeshproj/node/pkg/store"
+	"github.com/webmeshproj/webmesh/pkg/ctlcmd/config"
+	"github.com/webmeshproj/webmesh/pkg/store"
 	"golang.org/x/exp/slog"
 )
 

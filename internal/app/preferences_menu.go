@@ -32,8 +32,8 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/webmeshproj/node/pkg/ctlcmd/config"
-	"github.com/webmeshproj/node/pkg/net/wireguard"
+	"github.com/webmeshproj/webmesh/pkg/ctlcmd/config"
+	"github.com/webmeshproj/webmesh/pkg/net/wireguard"
 )
 
 const (

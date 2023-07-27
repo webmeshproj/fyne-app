@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2/data/binding"
-	"github.com/webmeshproj/node/pkg/net/wireguard"
+	"github.com/webmeshproj/webmesh/pkg/net/wireguard"
 
 	"github.com/webmeshproj/app/internal/daemon"
 )

@@ -30,8 +30,8 @@ import (
 	"sync/atomic"
 
 	v1 "github.com/webmeshproj/api/v1"
-	"github.com/webmeshproj/node/pkg/ctlcmd/config"
-	"github.com/webmeshproj/node/pkg/store"
+	"github.com/webmeshproj/webmesh/pkg/ctlcmd/config"
+	"github.com/webmeshproj/webmesh/pkg/store"
 )
 
 // Client is the client for the daemon.

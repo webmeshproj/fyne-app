@@ -26,7 +26,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/webmeshproj/node/pkg/ctlcmd/config"
+	"github.com/webmeshproj/webmesh/pkg/ctlcmd/config"
 	"golang.org/x/exp/slog"
 
 	"github.com/webmeshproj/app/internal/daemon"
