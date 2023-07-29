@@ -21,16 +21,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/webmeshproj/webmesh/pkg/ctlcmd/config"
-	"github.com/webmeshproj/webmesh/pkg/store"
-	"golang.org/x/exp/slog"
+	"github.com/webmeshproj/webmesh/pkg/cmd/ctlcmd/config"
+	"github.com/webmeshproj/webmesh/pkg/mesh"
 )
 
-func newStore(ctx context.Context, cfg *config.Config, opts ConnectOptions) (store.Store, error) {
+func newMeshConn(ctx context.Context, cfg *config.Config, opts ConnectOptions) (mesh.Mesh, error) {
 	storeopts := newStoreOptions(cfg, opts)
-	st, err := store.New(storeopts)
+	st, err := mesh.New(storeopts)
 	if err != nil {
-		return nil, fmt.Errorf("new store: %w", err)
+		return nil, fmt.Errorf("new mesh: %w", err)
 	}
 	if opts.ConnectTimeout <= 0 {
 		opts.ConnectTimeout = 30
@@ -39,25 +38,16 @@ func newStore(ctx context.Context, cfg *config.Config, opts ConnectOptions) (sto
 	defer cancel()
 	err = st.Open(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("open store: %w", err)
-	}
-	<-st.ReadyNotify(ctx)
-	if ctx.Err() != nil {
-		err = st.Close()
-		if err != nil {
-			slog.Default().Error("error closing store", "error", err.Error())
-		}
-		return nil, fmt.Errorf("wait for store ready: %w", ctx.Err())
+		return nil, fmt.Errorf("open mesh: %w", err)
 	}
 	return st, nil
 }
 
-func newStoreOptions(cfg *config.Config, opts ConnectOptions) *store.Options {
-	storeOpts := store.NewOptions()
+func newStoreOptions(cfg *config.Config, opts ConnectOptions) *mesh.Options {
+	storeOpts := mesh.NewOptions()
 	storeOpts.Raft.InMemory = true
 	storeOpts.Raft.ListenAddress = fmt.Sprintf(":%d", opts.RaftPort)
 	storeOpts.Raft.LeaveOnShutdown = true
-	storeOpts.Raft.ShutdownTimeout = time.Second * 10
 	storeOpts.Mesh.NoIPv4 = opts.NoIPv4
 	storeOpts.Mesh.NoIPv6 = opts.NoIPv6
 	storeOpts.Mesh.GRPCPort = int(opts.GRPCPort)
@@ -69,20 +59,20 @@ func newStoreOptions(cfg *config.Config, opts ConnectOptions) *store.Options {
 	user := cfg.GetUser(ctx.User)
 	if user.BasicAuthPassword != "" && user.BasicAuthUsername != "" {
 		storeOpts.Mesh.NodeID = user.BasicAuthUsername
-		storeOpts.Auth.Basic = &store.BasicAuthOptions{
+		storeOpts.Auth.Basic = &mesh.BasicAuthOptions{
 			Username: user.BasicAuthUsername,
 			Password: user.BasicAuthPassword,
 		}
 	}
 	if user.LDAPPassword != "" && user.LDAPUsername != "" {
 		storeOpts.Mesh.NodeID = user.LDAPUsername
-		storeOpts.Auth.LDAP = &store.LDAPAuthOptions{
+		storeOpts.Auth.LDAP = &mesh.LDAPAuthOptions{
 			Username: user.LDAPUsername,
 			Password: user.LDAPPassword,
 		}
 	}
 	if user.ClientKeyData != "" && user.ClientCertificateData != "" {
-		storeOpts.Auth.MTLS = &store.MTLSOptions{
+		storeOpts.Auth.MTLS = &mesh.MTLSOptions{
 			CertData: user.ClientCertificateData,
 			KeyData:  user.ClientKeyData,
 		}

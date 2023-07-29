@@ -5,8 +5,8 @@ go 1.20
 require (
 	fyne.io/fyne/v2 v2.3.5
 	github.com/webmeshproj/api v0.2.0
-	github.com/webmeshproj/webmesh v0.0.21
-	golang.org/x/exp v0.0.0-20230725093048-515e97ebf090
+	github.com/webmeshproj/webmesh v0.0.22
+	golang.org/x/exp v0.0.0-20230728194245-b0cb94b80691
 	golang.org/x/sys v0.10.0
 )
 
@@ -93,7 +93,7 @@ require (
 	github.com/tevino/abool v1.2.0 // indirect
 	github.com/vishvananda/netlink v1.0.0 // indirect
 	github.com/vishvananda/netns v0.0.0-20190625233234-7109fa855b0f // indirect
-	github.com/webmeshproj/raft-badger v0.0.0-20230726000837-2c984b2835ec // indirect
+	github.com/webmeshproj/raft-badger v0.0.0-20230728220038-2f75bbd4d5ed // indirect
 	github.com/yuin/goldmark v1.4.13 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/crypto v0.11.0 // indirect

@@ -29,8 +29,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/webmeshproj/webmesh/pkg/ctlcmd/config"
-	"github.com/webmeshproj/webmesh/pkg/store"
+	"github.com/webmeshproj/webmesh/pkg/cmd/ctlcmd/config"
+	"github.com/webmeshproj/webmesh/pkg/mesh"
 	"golang.org/x/exp/slog"
 )
 
@@ -39,7 +39,7 @@ type Server struct {
 	*http.Server
 	insecure bool
 	log      *slog.Logger
-	store    store.Store
+	mesh     mesh.Mesh
 	mu       sync.Mutex
 }
 
@@ -128,15 +128,15 @@ func (s *Server) handleConnect(w http.ResponseWriter, r *http.Request) {
 		s.returnError(w, fmt.Errorf("load config: %w", err))
 		return
 	}
-	if s.store != nil {
+	if s.mesh != nil {
 		// Close the existing store.
-		err = s.store.Close()
+		err = s.mesh.Close()
 		if err != nil {
 			s.returnError(w, fmt.Errorf("close existing store: %w", err))
 			return
 		}
 	}
-	s.store, err = newStore(r.Context(), cfg, req.Options)
+	s.mesh, err = newMeshConn(r.Context(), cfg, req.Options)
 	if err != nil {
 		s.returnError(w, err)
 		return
@@ -149,16 +149,16 @@ func (s *Server) handleDisconnect(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	defer r.Body.Close()
-	if s.store == nil {
+	if s.mesh == nil {
 		s.returnError(w, errNotConnected)
 		return
 	}
-	err := s.store.Close()
+	err := s.mesh.Close()
 	if err != nil {
 		s.returnError(w, err)
 		return
 	}
-	s.store = nil
+	s.mesh = nil
 	s.returnOK(w)
 }
 
@@ -167,11 +167,11 @@ func (s *Server) handleInterfaceMetrics(w http.ResponseWriter, r *http.Request) 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	defer r.Body.Close()
-	if s.store == nil {
+	if s.mesh == nil {
 		s.returnError(w, errNotConnected)
 		return
 	}
-	metrics, err := s.store.WireGuard().Metrics()
+	metrics, err := s.mesh.WireGuard().Metrics()
 	if err != nil {
 		s.returnError(w, fmt.Errorf("get interface metrics: %w", err))
 		return

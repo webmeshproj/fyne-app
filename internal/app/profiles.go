@@ -31,7 +31,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/webmeshproj/webmesh/pkg/ctlcmd/config"
+	"github.com/webmeshproj/webmesh/pkg/cmd/ctlcmd/config"
 )
 
 const noProfiles = "No profiles"

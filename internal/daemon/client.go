@@ -30,8 +30,8 @@ import (
 	"sync/atomic"
 
 	v1 "github.com/webmeshproj/api/v1"
-	"github.com/webmeshproj/webmesh/pkg/ctlcmd/config"
-	"github.com/webmeshproj/webmesh/pkg/store"
+	"github.com/webmeshproj/webmesh/pkg/cmd/ctlcmd/config"
+	"github.com/webmeshproj/webmesh/pkg/mesh"
 )
 
 // Client is the client for the daemon.
@@ -68,7 +68,7 @@ type client struct {
 	noDaemon      bool
 	mu            sync.Mutex
 	// Only valid when noDaemon is true.
-	store store.Store
+	mesh mesh.Mesh
 }
 
 // NewClient returns a new client.
@@ -148,14 +148,14 @@ func (c *client) Connect(ctx context.Context, opts ConnectOptions) error {
 	defer c.cancelConnect()
 	if c.noDaemon {
 		var err error
-		if c.store != nil {
-			err = c.store.Close()
+		if c.mesh != nil {
+			err = c.mesh.Close()
 			if err != nil {
 				return fmt.Errorf("close existing store: %w", err)
 			}
 			c.connected.Store(false)
 		}
-		c.store, err = newStore(ctx, c.config, opts)
+		c.mesh, err = newMeshConn(ctx, c.config, opts)
 		if err != nil {
 			return err
 		}
@@ -177,14 +177,14 @@ func (c *client) Disconnect(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.noDaemon {
-		if c.store == nil {
+		if c.mesh == nil {
 			return errNotConnected
 		}
-		err := c.store.Close()
+		err := c.mesh.Close()
 		if err != nil {
 			return fmt.Errorf("close store: %w", err)
 		}
-		c.store = nil
+		c.mesh = nil
 		c.connected.Store(false)
 	}
 	err := c.do(ctx, http.MethodPost, "/disconnect", nil, nil)
@@ -198,10 +198,10 @@ func (c *client) InterfaceMetrics(ctx context.Context) (*v1.InterfaceMetrics, er
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.noDaemon {
-		if c.store == nil {
+		if c.mesh == nil {
 			return nil, errNotConnected
 		}
-		return c.store.WireGuard().Metrics()
+		return c.mesh.WireGuard().Metrics()
 	}
 	var out v1.InterfaceMetrics
 	return &out, c.do(ctx, http.MethodGet, "/interface-metrics", nil, &out)

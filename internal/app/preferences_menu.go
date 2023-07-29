@@ -32,7 +32,7 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/webmeshproj/webmesh/pkg/ctlcmd/config"
+	"github.com/webmeshproj/webmesh/pkg/cmd/ctlcmd/config"
 	"github.com/webmeshproj/webmesh/pkg/net/wireguard"
 )
 
