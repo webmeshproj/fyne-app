@@ -201,7 +201,7 @@ func (c *client) InterfaceMetrics(ctx context.Context) (*v1.InterfaceMetrics, er
 		if c.mesh == nil {
 			return nil, errNotConnected
 		}
-		return c.mesh.WireGuard().Metrics()
+		return c.mesh.Network().WireGuard().Metrics()
 	}
 	var out v1.InterfaceMetrics
 	return &out, c.do(ctx, http.MethodGet, "/interface-metrics", nil, &out)

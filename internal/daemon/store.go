@@ -36,7 +36,7 @@ func newMeshConn(ctx context.Context, cfg *config.Config, opts ConnectOptions) (
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Second*time.Duration(opts.ConnectTimeout))
 	defer cancel()
-	err = st.Open(ctx)
+	err = st.Open(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("open mesh: %w", err)
 	}

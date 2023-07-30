@@ -171,7 +171,7 @@ func (s *Server) handleInterfaceMetrics(w http.ResponseWriter, r *http.Request) 
 		s.returnError(w, errNotConnected)
 		return
 	}
-	metrics, err := s.mesh.WireGuard().Metrics()
+	metrics, err := s.mesh.Network().WireGuard().Metrics()
 	if err != nil {
 		s.returnError(w, fmt.Errorf("get interface metrics: %w", err))
 		return
