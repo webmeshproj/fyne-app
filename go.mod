@@ -4,8 +4,8 @@ go 1.20
 
 require (
 	fyne.io/fyne/v2 v2.3.5
-	github.com/webmeshproj/api v0.2.1-0.20230729211225-4cf55f10ca71
-	github.com/webmeshproj/webmesh v0.0.25
+	github.com/webmeshproj/api v0.2.1
+	github.com/webmeshproj/webmesh v0.1.0
 	golang.org/x/exp v0.0.0-20230728194245-b0cb94b80691
 	golang.org/x/sys v0.10.0
 )
