@@ -44,13 +44,13 @@ func newMeshConn(ctx context.Context, cfg *config.Config, opts ConnectOptions) (
 }
 
 func newStoreOptions(cfg *config.Config, opts ConnectOptions) *mesh.Options {
-	storeOpts := mesh.NewOptions()
+	storeOpts := mesh.NewDefaultOptions()
 	storeOpts.Raft.InMemory = true
 	storeOpts.Raft.ListenAddress = fmt.Sprintf(":%d", opts.RaftPort)
 	storeOpts.Raft.LeaveOnShutdown = true
 	storeOpts.Mesh.NoIPv4 = opts.NoIPv4
 	storeOpts.Mesh.NoIPv6 = opts.NoIPv6
-	storeOpts.Mesh.GRPCPort = int(opts.GRPCPort)
+	storeOpts.Mesh.GRPCAdvertisePort = int(opts.GRPCPort)
 	storeOpts.WireGuard.InterfaceName = opts.InterfaceName
 	storeOpts.WireGuard.ListenPort = int(opts.ListenPort)
 	storeOpts.WireGuard.ForceTUN = opts.ForceTUN
