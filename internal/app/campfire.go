@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	v1 "github.com/webmeshproj/api/v1"
@@ -57,6 +58,38 @@ func MessagesPath(roomName string) string {
 func NewMessageKey(roomName string, from string) string {
 	t := time.Now().UTC().Format(time.RFC3339Nano)
 	return path.Join(MessagesPath(roomName), t, from)
+}
+
+func (app *App) listRooms() ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	c, err := app.dialNode(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to dial node: %w", err)
+	}
+	defer c.Close()
+	resp, err := v1.NewAppDaemonClient(c).Query(ctx, &v1.QueryRequest{
+		Command: v1.QueryRequest_LIST,
+		Query:   RoomsPrefix,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to query rooms: %w", err)
+	}
+	defer resp.CloseSend()
+	result, err := resp.Recv()
+	if err != nil {
+		return nil, fmt.Errorf("failed to receive query result: %w", err)
+	}
+	rooms := make([]string, 0, 10)
+	for _, r := range result.GetValue() {
+		r = strings.TrimPrefix(r, RoomsPrefix+"/")
+		parts := strings.Split(r, "/")
+		if len(parts) != 1 {
+			continue
+		}
+		rooms = append(rooms, parts[0])
+	}
+	return rooms, nil
 }
 
 func (app *App) onNewCampfire() {
@@ -94,6 +127,7 @@ func (app *App) onNewChatRoom() {
 		return
 	}
 	roomName := widget.NewEntry()
+	roomName.Wrapping = fyne.TextWrapOff
 	roomName.Validator = func(s string) error {
 		if strings.TrimSpace(s) == "" {
 			return errors.New("room name cannot be empty")
@@ -107,6 +141,7 @@ func (app *App) onNewChatRoom() {
 		return nil
 	}
 	selfDestruct := widget.NewEntry()
+	selfDestruct.Wrapping = fyne.TextWrapOff
 	selfDestruct.SetText("1h")
 	selfDestruct.Validator = func(s string) error {
 		if strings.TrimSpace(s) == "" {
@@ -144,6 +179,8 @@ func (app *App) onNewChatRoom() {
 			dialog.ShowError(err, app.main)
 			return
 		}
+		idx := app.roomsList.Length() - 1
+		app.roomsListWidget.Select(idx)
 	}, app.main)
 }
 

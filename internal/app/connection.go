@@ -19,6 +19,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -83,13 +84,53 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 		case switchConnected:
 			label.Set("Connected")
 			ctx := context.Background()
+			ctx, app.cancelNodeSubscriptions = context.WithCancel(ctx)
+			c, err := app.dialNode(ctx)
+			if err != nil {
+				app.log.Error("error dialing node", "error", err.Error())
+			} else {
+				// Subscribe to new rooms as they come in
+				go func() {
+					app.log.Info("subscribing to new rooms")
+					stream, err := v1.NewAppDaemonClient(c).Subscribe(ctx, &v1.SubscribeRequest{
+						Prefix: RoomsPrefix,
+					})
+					if err != nil {
+						app.log.Error("error subscribing to rooms", "error", err.Error())
+						return
+					}
+					defer stream.CloseSend()
+					for {
+						resp, err := stream.Recv()
+						if err != nil {
+							if err == context.Canceled || err == io.EOF {
+								return
+							}
+							app.log.Error("error receiving room", "error", err.Error())
+							return
+						}
+						prefix := strings.TrimPrefix(resp.GetKey(), RoomsPrefix+"/")
+						parts := strings.Split(prefix, "/")
+						if len(parts) == 1 {
+							app.roomsList.Append(parts[0])
+						}
+					}
+				}()
+			}
+			// Try to fetch the current list of rooms.
+			rooms, err := app.listRooms()
+			if err != nil {
+				app.log.Error("error listing rooms", "error", err.Error())
+			} else {
+				app.roomsList.Set(rooms)
+			}
 			metrics, err := app.getNodeMetrics(ctx)
 			if err != nil {
 				app.log.Error("error getting interface metrics", "error", err.Error())
-				return
+			} else {
+				connectedInterface.Set(metrics.DeviceName)
 			}
-			connectedInterface.Set(metrics.DeviceName)
-			ctx, app.cancelMetrics = context.WithCancel(ctx)
+
 			go func() {
 				t := time.NewTicker(time.Second * 5)
 				defer t.Stop()
@@ -111,7 +152,7 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 		case switchDisconnected:
 			// Disconnect from the mesh.
 			defer resetConnectedValues()
-			defer app.cancelMetrics()
+			defer app.cancelNodeSubscriptions()
 			if app.connecting.Load() {
 				app.log.Info("cancelling in-progress connection")
 				app.cancelConnect()

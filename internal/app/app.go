@@ -46,8 +46,8 @@ type App struct {
 	nodeID binding.String
 	// campfireURL is the current campfire URL.
 	campfireURL binding.String
-	// cancelMetrics is the cancel function for stopping the metrics updater.
-	cancelMetrics context.CancelFunc
+	// cancelNodeSubscriptions is the cancel function for stopping the node subscriptions.
+	cancelNodeSubscriptions context.CancelFunc
 	// cancelConnect is the cancel function for stopping the an in-progress connection.
 	cancelConnect context.CancelFunc
 	// connecting indicates if the app is currently connecting to the mesh.
@@ -56,8 +56,10 @@ type App struct {
 	connected atomic.Bool
 	// newCampButton is the button for creating a new campfire.
 	newCampButton *widget.Button
-	// roomsList is the widget containing the list of rooms.
+	// roomsList is the list of rooms.
 	roomsList binding.StringList
+	// roomsListWidget is the widget containing the list of rooms.
+	roomsListWidget *widget.List
 	// chatContainer is the container for the chat room.
 	chatContainer *fyne.Container
 	// chatTextGrid is the grid for the chat text.
@@ -70,15 +72,15 @@ type App struct {
 func New(socketAddr string) *App {
 	a := app.NewWithID(AppID)
 	app := &App{
-		App:           a,
-		main:          a.NewWindow("Webmesh Campfire"),
-		nodeID:        binding.NewString(),
-		campfireURL:   binding.NewString(),
-		newCampButton: widget.NewButton("New Campfire", func() {}),
-		roomsList:     binding.NewStringList(),
-		cancelMetrics: func() {},
-		cancelConnect: func() {},
-		log:           slog.Default(),
+		App:                     a,
+		main:                    a.NewWindow("Webmesh Campfire"),
+		nodeID:                  binding.NewString(),
+		campfireURL:             binding.NewString(),
+		newCampButton:           widget.NewButton("New Campfire", func() {}),
+		roomsList:               binding.NewStringList(),
+		cancelNodeSubscriptions: func() {},
+		cancelConnect:           func() {},
+		log:                     slog.Default(),
 	}
 	if socketAddr != "" {
 		nodeSocket.Set(socketAddr)
@@ -135,12 +137,12 @@ func (app *App) setup() {
 	renderRoom := func(item binding.DataItem, obj fyne.CanvasObject) {
 		obj.(*widget.Label).Bind(item.(binding.String))
 	}
-	roomsList := widget.NewListWithData(app.roomsList, newRoomLabel, renderRoom)
-	roomsList.OnSelected = app.onRoomSelected
-	roomsList.OnUnselected = app.onRoomUnselected
+	app.roomsListWidget = widget.NewListWithData(app.roomsList, newRoomLabel, renderRoom)
+	app.roomsListWidget.OnSelected = app.onRoomSelected
+	app.roomsListWidget.OnUnselected = app.onRoomUnselected
 	roomsContainer := container.New(layout.NewVBoxLayout(),
 		widget.NewButton("New Room", app.onNewChatRoom),
-		widget.NewLabel("Chat Rooms"), roomsList,
+		widget.NewLabel("Chat Rooms"), app.roomsListWidget,
 	)
 	app.chatTextGrid = widget.NewTextGrid()
 	app.chatContainer = container.New(layout.NewHBoxLayout(),
