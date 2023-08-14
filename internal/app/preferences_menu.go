@@ -101,6 +101,7 @@ func (app *App) displayPreferences() {
 		connectTimeout, _ := connectTimeout.Get()
 		app.Preferences().SetString(preferenceConnectTimeout, connectTimeout)
 		turnServers, _ := turnServers.Get()
+		turnServers = strings.TrimSpace(turnServers)
 		app.Preferences().SetString(preferenceTURNServers, strings.Replace(turnServers, "\n", ",", -1))
 	}
 	popup.Show()

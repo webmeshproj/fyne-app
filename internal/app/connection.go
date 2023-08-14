@@ -18,11 +18,16 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/dialog"
 	v1 "github.com/webmeshproj/api/v1"
+	"github.com/webmeshproj/webmesh/pkg/campfire"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 var (
@@ -51,25 +56,49 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			app.connecting.Store(true)
 			app.log.Info("connecting to mesh")
 			label.Set("Connecting")
+			campURL, _ := campfireURL.Get()
+			connectCfg := make(map[string]any)
+			if campURL != "" {
+				parsed, err := campfire.ParseCampfireURI(campURL)
+				if err != nil {
+					app.log.Error("error parsing campfire url", "error", err.Error())
+					dialog.ShowError(fmt.Errorf("invaid Campfire URL"), app.main)
+					return
+				}
+				connectCfg["mesh"] = map[string]any{
+					"join-campfire-psk":          string(parsed.PSK),
+					"join-campfire-turn-servers": parsed.TURNServers,
+				}
+			}
+			var opts v1.ConnectRequest
+			var err error
+			opts.Config, err = structpb.NewStruct(connectCfg)
+			if err != nil {
+				app.log.Error("error creating connect config", "error", err.Error())
+				dialog.ShowError(fmt.Errorf("error creating connect config: %w", err), app.main)
+				return
+			}
 			go func() {
 				defer app.connecting.Store(false)
 				c, err := app.dialNode()
 				if err != nil {
 					app.log.Error("error dialing node", "error", err.Error())
+					dialog.ShowError(fmt.Errorf("error dialing node: %w", err), app.main)
 					label.Set("Disconnected")
 					switchValue.Set(switchDisconnected)
 					return
 				}
 				defer c.Close()
-				_, err = v1.NewAppDaemonClient(c).Connect(context.Background(), &v1.ConnectRequest{})
+				_, err = v1.NewAppDaemonClient(c).Connect(context.Background(), &opts)
 				if err != nil {
 					app.log.Error("error connecting to mesh", "error", err.Error())
-					// TODO: Display error.
+					dialog.ShowError(fmt.Errorf("error connecting to mesh: %w", err), app.main)
 					label.Set("Disconnected")
 					switchValue.Set(switchDisconnected)
 					return
 				}
 				switchValue.Set(switchConnected)
+				app.newCampButton.Enable()
 			}()
 		case switchConnected:
 			label.Set("Connected")
@@ -77,6 +106,7 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			c, err := app.dialNode()
 			if err != nil {
 				app.log.Error("error dialing node socket", "error", err.Error())
+				dialog.ShowError(fmt.Errorf("error dialing node socket: %w", err), app.main)
 				return
 			}
 			cli := v1.NewAppDaemonClient(c)
@@ -130,14 +160,19 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 				c, err := app.dialNode()
 				if err != nil {
 					app.log.Error("error dialing node socket", "error", err.Error())
+					dialog.ShowError(fmt.Errorf("error dialing node socket: %w", err), app.main)
 					return
 				}
 				cli := v1.NewAppDaemonClient(c)
 				defer c.Close()
 				_, err = cli.Disconnect(context.Background(), &v1.DisconnectRequest{})
 				if err != nil {
-					app.log.Error("error disconnecting from mesh", "error", err.Error())
+					if !strings.Contains(err.Error(), "not connected") {
+						app.log.Error("error disconnecting from mesh", "error", err.Error())
+						dialog.ShowError(fmt.Errorf("error disconnecting from mesh: %w", err), app.main)
+					}
 				}
+				app.newCampButton.Disable()
 				label.Set("Disconnected")
 			}()
 		}

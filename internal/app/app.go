@@ -38,12 +38,12 @@ type App struct {
 	fyne.App
 	// main is the main window.
 	main fyne.Window
-	// currentProfile is the current profile.
-	currentProfile binding.String
 	// cancelMetrics is the cancel function for stopping the metrics updater.
 	cancelMetrics context.CancelFunc
 	// connecting indicates if the app is currently connecting to the mesh.
 	connecting atomic.Bool
+	// newCampButton is the button for creating a new campfire.
+	newCampButton *widget.Button
 	// log is the application logger.
 	log *slog.Logger
 }
@@ -52,10 +52,10 @@ type App struct {
 func New() *App {
 	a := app.NewWithID(appID)
 	app := &App{
-		App:            a,
-		main:           a.NewWindow("WebMesh"),
-		currentProfile: binding.NewString(),
-		log:            slog.Default(),
+		App:           a,
+		main:          a.NewWindow("WebMesh"),
+		newCampButton: widget.NewButton("New Campfire", func() {}),
+		log:           slog.Default(),
 	}
 	app.setup()
 	app.main.Show()
@@ -67,21 +67,36 @@ func (app *App) setup() {
 	app.main.Resize(fyne.NewSize(800, 600))
 	app.main.SetCloseIntercept(app.closeIntercept)
 	app.main.SetMainMenu(app.newMainMenu())
+
+	// Header section
 	connectedText := binding.NewString()
 	connectedText.Set("Disconnected")
 	connectedLabel := widget.NewLabelWithData(connectedText)
 	connectSwitch, connected := newConnectSwitch()
 	connected.AddListener(binding.NewDataListener(app.onConnectChange(connectedText, connected)))
+	campfileEntry := widget.NewEntryWithData(campfireURL)
+	campfileEntry.Wrapping = fyne.TextWrapOff
+	campfileEntry.SetPlaceHolder("camp://")
+	campfileEntry.SetMinRowsVisible(1)
+	app.newCampButton = widget.NewButton("New Campfire", app.onNewCampfire)
+	app.newCampButton.Alignment = widget.ButtonAlignTrailing
+	app.newCampButton.Disable()
 	header := container.New(layout.NewHBoxLayout(),
 		connectSwitch, connectedLabel,
 		layout.NewSpacer(),
+		widget.NewLabel("Campfire URL"),
+		campfileEntry,
+		app.newCampButton,
 	)
+
+	// Interface metrics section
 	ifaceLabel := widget.NewLabel("Interface")
 	sentLabel := widget.NewLabel("Total Sent")
 	rcvdLabel := widget.NewLabel("Total Received")
 	ifaceLabel.TextStyle.Bold = true
 	sentLabel.TextStyle.Bold = true
 	rcvdLabel.TextStyle.Bold = true
+
 	body := container.New(layout.NewVBoxLayout(),
 		container.New(layout.NewHBoxLayout(),
 			ifaceLabel, widget.NewLabelWithData(connectedInterface), layout.NewSpacer()),
@@ -89,6 +104,7 @@ func (app *App) setup() {
 			sentLabel, widget.NewLabelWithData(totalSentBytes), layout.NewSpacer()),
 		container.New(layout.NewHBoxLayout(),
 			rcvdLabel, widget.NewLabelWithData(totalRecvBytes), layout.NewSpacer()),
+		widget.NewSeparator(),
 	)
 	resetConnectedValues()
 	app.main.SetContent(container.New(layout.NewVBoxLayout(),
