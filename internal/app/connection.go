@@ -70,6 +70,9 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 					"join-campfire-psk":          string(parsed.PSK),
 					"join-campfire-turn-servers": parsed.TURNServers,
 				}
+				connectCfg["bootstrap"] = map[string]any{
+					"enabled": false,
+				}
 			}
 			var opts v1.ConnectRequest
 			var err error

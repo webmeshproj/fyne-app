@@ -1,21 +1,53 @@
-version: '3'
+version: "3"
+
+networks:
+  public-net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.1.0.0/24
+          gateway: 10.1.0.100
+  site-1:
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.10.0.0/24
+  site-2:
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.20.0.0/24
+  site-3:
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.30.0.0/24
 
 services:
-  bootstrap-node:
-    image: ${IMAGE:-ghcr.io/webmeshproj/node:latest}
-    network_mode: host
-    hostname: bootstrap-node
+  turn-server:
+    image: ghcr.io/webmeshproj/turn:latest
+    networks:
+      public-net:
+        ipv4_address: 10.1.0.1
     entrypoint:
-      - /node
+      - /webmesh-turn
+      - --public-ip=10.1.0.1
+      - --enable-campfire=true
+    restart: on-failure
+
+  site-1:
+    image: ${IMAGE:-ghcr.io/webmeshproj/node:latest}
+    networks:
+      - site-1
+    hostname: site-1
+    entrypoint:
+      - /webmesh-node
       - --global.insecure
       - --global.no-ipv6
-      - --global.log-level=debug
-      - --global.primary-endpoint=192.168.100.165
       - --bootstrap.enabled
-      - --bootstrap.default-network-policy=accept
-      - --bootstrap.ipv4-network=10.10.10.0/24
+      - --raft.in-memory
+      - --app-daemon
+      - --app-daemon-bind=0.0.0.0:8080
     ports:
-      - 8443:8443
-      - 51820:51820/udp
+      - 8080:8080
     cap_add: ["NET_ADMIN", "NET_RAW", "SYS_MODULE"]
-
