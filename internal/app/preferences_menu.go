@@ -44,6 +44,7 @@ const (
 )
 
 var (
+	nodeSocket     = binding.NewString()
 	interfaceName  = binding.NewString()
 	forceTUN       = binding.NewBool()
 	wireguardPort  = binding.NewString()
@@ -52,7 +53,6 @@ var (
 	disableIPv4    = binding.NewBool()
 	disableIPv6    = binding.NewBool()
 	connectTimeout = binding.NewString()
-	nodeSocket     = binding.NewString()
 	turnServers    = binding.NewString()
 )
 

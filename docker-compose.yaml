@@ -47,7 +47,41 @@ services:
       - --bootstrap.enabled
       - --raft.in-memory
       - --app-daemon
-      - --app-daemon-bind=0.0.0.0:8080
+      - --app-daemon-bind=0.0.0.0:8081
     ports:
-      - 8080:8080
+      - 8081:8081
+    cap_add: ["NET_ADMIN", "NET_RAW", "SYS_MODULE"]
+
+  site-2:
+    image: ${IMAGE:-ghcr.io/webmeshproj/node:latest}
+    networks:
+      - site-2
+    hostname: site-2
+    entrypoint:
+      - /webmesh-node
+      - --global.insecure
+      - --global.no-ipv6
+      - --bootstrap.enabled
+      - --raft.in-memory
+      - --app-daemon
+      - --app-daemon-bind=0.0.0.0:8082
+    ports:
+      - 8082:8082
+    cap_add: ["NET_ADMIN", "NET_RAW", "SYS_MODULE"]
+
+  site-3:
+    image: ${IMAGE:-ghcr.io/webmeshproj/node:latest}
+    networks:
+      - site-3
+    hostname: site-3
+    entrypoint:
+      - /webmesh-node
+      - --global.insecure
+      - --global.no-ipv6
+      - --bootstrap.enabled
+      - --raft.in-memory
+      - --app-daemon
+      - --app-daemon-bind=0.0.0.0:8083
+    ports:
+      - 8083:8083
     cap_add: ["NET_ADMIN", "NET_RAW", "SYS_MODULE"]

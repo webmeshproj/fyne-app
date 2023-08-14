@@ -27,6 +27,7 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	v1 "github.com/webmeshproj/api/v1"
 )
 
 // appID is the application ID.
@@ -42,6 +43,8 @@ type App struct {
 	cancelMetrics context.CancelFunc
 	// connecting indicates if the app is currently connecting to the mesh.
 	connecting atomic.Bool
+	// connected indicates if the app is currently connected to the mesh.
+	connected atomic.Bool
 	// newCampButton is the button for creating a new campfire.
 	newCampButton *widget.Button
 	// log is the application logger.
@@ -49,13 +52,16 @@ type App struct {
 }
 
 // New sets up and returns a new application.
-func New() *App {
+func New(socketAddr string) *App {
 	a := app.NewWithID(appID)
 	app := &App{
 		App:           a,
 		main:          a.NewWindow("WebMesh"),
 		newCampButton: widget.NewButton("New Campfire", func() {}),
 		log:           slog.Default(),
+	}
+	if socketAddr != "" {
+		app.Preferences().SetString(preferenceNodeSocket, socketAddr)
 	}
 	app.setup()
 	app.main.Show()
@@ -116,10 +122,15 @@ func (app *App) setup() {
 // closeIntercept is fired before the main window is closed.
 func (app *App) closeIntercept() {
 	defer app.main.Close()
-	// if app.cli.Connected() {
-	// 	err := app.cli.Disconnect(context.Background())
-	// 	if err != nil {
-	// 		app.log.Error("error disconnecting from mesh", "error", err.Error())
-	// 	}
-	// }
+	if app.connected.Load() {
+		c, err := app.dialNode()
+		if err != nil {
+			app.log.Error("error dialing node", "error", err.Error())
+			return
+		}
+		defer c.Close()
+		if _, err := v1.NewAppDaemonClient(c).Disconnect(context.Background(), &v1.DisconnectRequest{}); err != nil {
+			app.log.Error("error disconnecting from node", "error", err.Error())
+		}
+	}
 }

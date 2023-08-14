@@ -17,9 +17,14 @@ limitations under the License.
 package main
 
 import (
+	"flag"
+
 	"github.com/webmeshproj/app/internal/app"
 )
 
 func main() {
-	app.New().Run()
+	socketAddr := flag.String("socket-addr", "",
+		"socket address to connect to (defaults to that stored in app preferences)")
+	flag.Parse()
+	app.New(*socketAddr).Run()
 }
