@@ -61,10 +61,14 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			}
 			go func() {
 				defer app.connecting.Store(false)
-				resp, err := app.doConnect(&opts)
+				var ctx context.Context
+				ctx, app.cancelConnect = context.WithCancel(context.Background())
+				resp, err := app.doConnect(ctx, &opts)
 				if err != nil {
-					app.log.Error("error connecting to mesh", "error", err.Error())
-					dialog.ShowError(fmt.Errorf("error connecting to mesh: %w", err), app.main)
+					if ctx.Err() == nil {
+						app.log.Error("error connecting to mesh", "error", err.Error())
+						dialog.ShowError(fmt.Errorf("error connecting to mesh: %w", err), app.main)
+					}
 					label.Set("Disconnected")
 					switchValue.Set(switchDisconnected)
 					return
@@ -78,7 +82,7 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 		case switchConnected:
 			label.Set("Connected")
 			ctx := context.Background()
-			metrics, err := app.getNodeMetrics()
+			metrics, err := app.getNodeMetrics(ctx)
 			if err != nil {
 				app.log.Error("error getting interface metrics", "error", err.Error())
 				return
@@ -93,7 +97,7 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 					case <-ctx.Done():
 						return
 					case <-t.C:
-						metrics, err := app.getNodeMetrics()
+						metrics, err := app.getNodeMetrics(ctx)
 						if err != nil {
 							app.log.Error("error getting interface metrics", "error", err.Error())
 							continue
@@ -106,12 +110,10 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 		case switchDisconnected:
 			// Disconnect from the mesh.
 			defer resetConnectedValues()
-			if app.cancelMetrics != nil {
-				app.cancelMetrics()
-			}
+			defer app.cancelMetrics()
 			if app.connecting.Load() {
 				app.log.Info("cancelling in-progress connection")
-				// app.cli.CancelConnect() // TODO: Implement.
+				app.cancelConnect()
 				return
 			}
 			if !app.connected.Load() {
@@ -119,7 +121,9 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			}
 			app.log.Info("disconnecting from mesh")
 			go func() {
-				err := app.doDisconnect()
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+				defer cancel()
+				err := app.doDisconnect(ctx)
 				if err != nil {
 					if !strings.Contains(err.Error(), "not connected") {
 						app.log.Error("error disconnecting from mesh", "error", err.Error())

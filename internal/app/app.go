@@ -20,6 +20,7 @@ import (
 	"context"
 	"log/slog"
 	"sync/atomic"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -43,6 +44,8 @@ type App struct {
 	main fyne.Window
 	// cancelMetrics is the cancel function for stopping the metrics updater.
 	cancelMetrics context.CancelFunc
+	// cancelConnect is the cancel function for stopping the an in-progress connection.
+	cancelConnect context.CancelFunc
 	// connecting indicates if the app is currently connecting to the mesh.
 	connecting atomic.Bool
 	// connected indicates if the app is currently connected to the mesh.
@@ -61,6 +64,8 @@ func New(socketAddr string) *App {
 		main:          a.NewWindow("WebMesh"),
 		newCampButton: widget.NewButton("New Campfire", func() {}),
 		log:           slog.Default(),
+		cancelMetrics: func() {},
+		cancelConnect: func() {},
 	}
 	if socketAddr != "" {
 		nodeSocket.Set(socketAddr)
@@ -133,7 +138,9 @@ func (app *App) setup() {
 func (app *App) closeIntercept() {
 	defer app.main.Close()
 	if app.connected.Load() {
-		c, err := app.dialNode()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+		c, err := app.dialNode(ctx)
 		if err != nil {
 			app.log.Error("error dialing node", "error", err.Error())
 			return

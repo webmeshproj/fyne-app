@@ -27,33 +27,33 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func (app *App) doConnect(opts *v1.ConnectRequest) (*v1.ConnectResponse, error) {
-	c, err := app.dialNode()
+func (app *App) doConnect(ctx context.Context, opts *v1.ConnectRequest) (*v1.ConnectResponse, error) {
+	c, err := app.dialNode(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer c.Close()
-	return v1.NewAppDaemonClient(c).Connect(context.Background(), opts)
+	return v1.NewAppDaemonClient(c).Connect(ctx, opts)
 }
 
-func (app *App) doDisconnect() error {
-	c, err := app.dialNode()
+func (app *App) doDisconnect(ctx context.Context) error {
+	c, err := app.dialNode(ctx)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
 	cli := v1.NewAppDaemonClient(c)
-	_, err = cli.Disconnect(context.Background(), &v1.DisconnectRequest{})
+	_, err = cli.Disconnect(ctx, &v1.DisconnectRequest{})
 	return err
 }
 
-func (app *App) getNodeMetrics() (*v1.InterfaceMetrics, error) {
-	c, err := app.dialNode()
+func (app *App) getNodeMetrics(ctx context.Context) (*v1.InterfaceMetrics, error) {
+	c, err := app.dialNode(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer c.Close()
-	resp, err := v1.NewAppDaemonClient(c).Metrics(context.Background(), &v1.MetricsRequest{})
+	resp, err := v1.NewAppDaemonClient(c).Metrics(ctx, &v1.MetricsRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -63,25 +63,25 @@ func (app *App) getNodeMetrics() (*v1.InterfaceMetrics, error) {
 	return nil, fmt.Errorf("no metrics returned")
 }
 
-func (app *App) startCampfire(uri *campfire.CampfireURI) error {
-	c, err := app.dialNode()
+func (app *App) startCampfire(ctx context.Context, uri *campfire.CampfireURI) error {
+	c, err := app.dialNode(ctx)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
-	_, err = v1.NewAppDaemonClient(c).StartCampfire(context.Background(), &v1.StartCampfireRequest{
+	_, err = v1.NewAppDaemonClient(c).StartCampfire(ctx, &v1.StartCampfireRequest{
 		CampUrl: uri.EncodeURI(),
 	})
 	return err
 }
 
-func (app *App) dialNode() (*grpc.ClientConn, error) {
+func (app *App) dialNode(ctx context.Context) (*grpc.ClientConn, error) {
 	socketAddr, err := nodeSocket.Get()
 	if err != nil {
 		return nil, err
 	}
 	socket := strings.TrimPrefix(socketAddr, "tcp://")
-	c, err := grpc.Dial(socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	c, err := grpc.DialContext(ctx, socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		app.log.Error("failed to connect to node", "error", err.Error())
 		return nil, err

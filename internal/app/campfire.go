@@ -17,9 +17,11 @@ limitations under the License.
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
@@ -48,7 +50,9 @@ func (app *App) onNewCampfire() {
 		PSK:         psk,
 		TURNServers: campTurnServers,
 	}
-	err = app.startCampfire(uri)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	err = app.startCampfire(ctx, uri)
 	if err != nil {
 		dialog.ShowError(fmt.Errorf("failed to start campfire: %w", err), app.main)
 		return
