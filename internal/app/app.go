@@ -18,18 +18,15 @@ package app
 
 import (
 	"context"
+	"log/slog"
+	"sync/atomic"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/webmeshproj/webmesh/pkg/cmd/ctlcmd/config"
-	"golang.org/x/exp/slog"
-
-	"github.com/webmeshproj/app/internal/daemon"
 )
 
 // appID is the application ID.
@@ -43,62 +40,41 @@ type App struct {
 	main fyne.Window
 	// currentProfile is the current profile.
 	currentProfile binding.String
-	// profiles is the widget for selecting profiles.
-	profiles *widget.Select
-	// cli is the daemon client. It is used to communicate with the daemon.
-	// When running as root on unix-like systems and no daemon is available,
-	// this will be a pass-through client that executes the requested command
-	// directly.
-	cli daemon.Client
 	// cancelMetrics is the cancel function for stopping the metrics updater.
 	cancelMetrics context.CancelFunc
+	// connecting indicates if the app is currently connecting to the mesh.
+	connecting atomic.Bool
 	// log is the application logger.
 	log *slog.Logger
 }
 
 // New sets up and returns a new application.
-func New(configFile string) *App {
+func New() *App {
 	a := app.NewWithID(appID)
 	app := &App{
 		App:            a,
 		main:           a.NewWindow("WebMesh"),
 		currentProfile: binding.NewString(),
-		profiles:       widget.NewSelect([]string{}, nil),
-		cli:            daemon.NewClient(),
 		log:            slog.Default(),
 	}
-	app.setup(configFile)
+	app.setup()
 	app.main.Show()
 	return app
 }
 
 // setupMain sets up the initial state of the app.
-func (app *App) setup(configFile string) {
-	err := app.cli.LoadConfig(func() string {
-		if configFile != "" {
-			return configFile
-		}
-		return app.Preferences().StringWithFallback(preferenceConfigFile, config.DefaultConfigPath)
-	}())
-	if err != nil {
-		app.log.Error("error loading config", "error", err.Error())
-	}
+func (app *App) setup() {
 	app.main.Resize(fyne.NewSize(800, 600))
 	app.main.SetCloseIntercept(app.closeIntercept)
 	app.main.SetMainMenu(app.newMainMenu())
-	app.reloadProfileSelector()
 	connectedText := binding.NewString()
 	connectedText.Set("Disconnected")
 	connectedLabel := widget.NewLabelWithData(connectedText)
 	connectSwitch, connected := newConnectSwitch()
 	connected.AddListener(binding.NewDataListener(app.onConnectChange(connectedText, connected)))
-	editProfile := widget.NewButtonWithIcon("Edit", theme.SettingsIcon(), app.onEditProfile)
-	addProfile := widget.NewButtonWithIcon("Add", theme.ContentAddIcon(), app.onAddProfile)
-	addProfile.Importance = widget.HighImportance
 	header := container.New(layout.NewHBoxLayout(),
 		connectSwitch, connectedLabel,
 		layout.NewSpacer(),
-		widget.NewLabel("Profile"), app.profiles, editProfile, addProfile,
 	)
 	ifaceLabel := widget.NewLabel("Interface")
 	sentLabel := widget.NewLabel("Total Sent")
@@ -125,10 +101,10 @@ func (app *App) setup(configFile string) {
 // closeIntercept is fired before the main window is closed.
 func (app *App) closeIntercept() {
 	defer app.main.Close()
-	if app.cli.Connected() {
-		err := app.cli.Disconnect(context.Background())
-		if err != nil {
-			app.log.Error("error disconnecting from mesh", "error", err.Error())
-		}
-	}
+	// if app.cli.Connected() {
+	// 	err := app.cli.Disconnect(context.Background())
+	// 	if err != nil {
+	// 		app.log.Error("error disconnecting from mesh", "error", err.Error())
+	// 	}
+	// }
 }

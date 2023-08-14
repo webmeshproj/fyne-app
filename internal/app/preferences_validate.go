@@ -17,50 +17,20 @@ limitations under the License.
 package app
 
 import (
-	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
 	"fyne.io/fyne/v2/data/binding"
-	"github.com/webmeshproj/webmesh/pkg/cmd/ctlcmd/config"
 )
 
 func validatePreferences() error {
 	for _, val := range []func() error{
-		validateConfigFile,
 		validatePorts,
 		validateConnectTimeout,
 	} {
 		if err := val(); err != nil {
 			return err
-		}
-	}
-	return nil
-}
-
-func validateConfigFile() error {
-	cfgFile, err := configFile.Get()
-	if err != nil {
-		return err
-	}
-	if cfgFile == "" {
-		return errors.New("A configuration file is required")
-	}
-	_, err = os.Stat(cfgFile)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Configuration file is invalid: %w", err)
-	} else if os.IsNotExist(err) {
-		// Try to touch the file to ensure it can be created.
-		err = os.MkdirAll(filepath.Dir(cfgFile), 0700)
-		if err != nil {
-			return fmt.Errorf("Configuration file is invalid: %w", err)
-		}
-		err = config.New().WriteTo(cfgFile)
-		if err != nil {
-			return fmt.Errorf("Configuration file is invalid: %w", err)
 		}
 	}
 	return nil
@@ -96,7 +66,7 @@ func validateConnectTimeout() error {
 	}
 	_, err = time.ParseDuration(val)
 	if err != nil {
-		return fmt.Errorf("Connect timeout is invalid: %w", err)
+		return fmt.Errorf("connect timeout is invalid: %w", err)
 	}
 	return nil
 }

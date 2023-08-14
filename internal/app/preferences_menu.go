@@ -17,9 +17,6 @@ limitations under the License.
 package app
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -29,15 +26,11 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/storage"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/webmeshproj/webmesh/pkg/cmd/ctlcmd/config"
 	"github.com/webmeshproj/webmesh/pkg/net/wireguard"
 )
 
 const (
-	preferenceConfigFile     = "configFile"
 	preferenceInterfaceName  = "interfaceName"
 	preferenceForceTUN       = "forceTUN"
 	preferenceWireGuardPort  = "wireguardPort"
@@ -46,10 +39,11 @@ const (
 	preferenceDisableIPv4    = "disableIPv4"
 	preferenceDisableIPv6    = "disableIPv6"
 	preferenceConnectTimeout = "connectTimeout"
+	preferenceNodeSocket     = "nodeSocket"
+	preferenceTURNServers    = "turnServers"
 )
 
 var (
-	configFile     = binding.NewString()
 	interfaceName  = binding.NewString()
 	forceTUN       = binding.NewBool()
 	wireguardPort  = binding.NewString()
@@ -58,15 +52,18 @@ var (
 	disableIPv4    = binding.NewBool()
 	disableIPv6    = binding.NewBool()
 	connectTimeout = binding.NewString()
+	nodeSocket     = binding.NewString()
+	turnServers    = binding.NewString()
 )
 
 // displayPreferences displays the preferences modal.
 func (app *App) displayPreferences() {
 	form := widget.NewForm(
-		app.configFileFormItem(),
+		app.socketFormItem(),
 		app.interfaceFormItem(),
 		app.portsFormItem(),
 		app.timeoutsFormItem(),
+		app.turnServersFormItem(),
 		app.protocolFormItem(),
 	)
 	popup := widget.NewModalPopUp(
@@ -85,8 +82,8 @@ func (app *App) displayPreferences() {
 		}
 		defer popup.Hide()
 		// Save preferences.
-		configFile, _ := configFile.Get()
-		app.Preferences().SetString(preferenceConfigFile, configFile)
+		nodeSocket, _ := nodeSocket.Get()
+		app.Preferences().SetString(preferenceNodeSocket, nodeSocket)
 		interfaceName, _ := interfaceName.Get()
 		app.Preferences().SetString(preferenceInterfaceName, interfaceName)
 		forceTUN, _ := forceTUN.Get()
@@ -103,69 +100,22 @@ func (app *App) displayPreferences() {
 		app.Preferences().SetBool(preferenceDisableIPv6, disableIPv6)
 		connectTimeout, _ := connectTimeout.Get()
 		app.Preferences().SetString(preferenceConnectTimeout, connectTimeout)
-		// Reload configuration.
-		// TODO: Check if new config and we are currently connected. If so, disconnect and reconnect.
-		app.log.Info("reloading configuration", "file", configFile)
-		err = app.cli.LoadConfig(configFile)
-		if err != nil {
-			app.log.Error("error reloading configuration", "error", err.Error())
-			err = fmt.Errorf("Configuration file is invalid, try selecting a different one: %w", err)
-			dialog.ShowError(err, app.main)
-			return
-		}
-		// Re-render profile selector.
-		app.reloadProfileSelector()
+		turnServers, _ := turnServers.Get()
+		app.Preferences().SetString(preferenceTURNServers, strings.Replace(turnServers, "\n", ",", -1))
 	}
 	popup.Show()
 }
 
-func (app *App) configFileFormItem() *widget.FormItem {
-	configPath := app.Preferences().StringWithFallback(preferenceConfigFile, config.DefaultConfigPath)
-	configFile.Set(configPath)
-	entry := widget.NewEntryWithData(configFile)
-	entry.Wrapping = fyne.TextWrapOff
-	entry.Validator = func(s string) error {
-		if s == "" {
-			return nil
-		}
-		if s == config.DefaultConfigPath {
-			return nil
-		}
-		_, err := os.Stat(s)
-		if err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		return nil
+func (app *App) socketFormItem() *widget.FormItem {
+	socket := app.Preferences().StringWithFallback(preferenceNodeSocket, "tcp://127.0.0.1:8080")
+	nodeSocket.Set(socket)
+	nodeSocketInput := widget.NewEntryWithData(nodeSocket)
+	nodeSocketInput.Wrapping = fyne.TextWrapOff
+	nodeSocketInput.OnChanged = func(s string) {
+		app.Preferences().SetString(preferenceNodeSocket, s)
 	}
-	entry.SetPlaceHolder("Webmesh configuration file")
-	dialogSelect := widget.NewButton("Open", func() {
-		fileDialog := dialog.NewFileOpen(func(reader fyne.URIReadCloser, err error) {
-			if err != nil {
-				app.log.Error("error opening file", "error", err.Error())
-				return
-			}
-			if reader == nil {
-				return
-			}
-			defer reader.Close()
-			selected := reader.URI().String()
-			app.log.Info("selected configuration file", "file", selected)
-			configFile.Set(strings.TrimPrefix(selected, "file://"))
-		}, app.main)
-		dir := filepath.Dir(configPath)
-		if dir != "" {
-			uri := storage.NewFileURI(dir)
-			lister, err := storage.ListerForURI(uri)
-			if err == nil {
-				fileDialog.SetLocation(lister)
-			}
-		}
-		fileDialog.Show()
-	})
-	dialogSelect.SetIcon(theme.FileIcon())
-	dialogSelect.Alignment = widget.ButtonAlignTrailing
-	formItem := widget.NewFormItem("Config file", fyne.NewContainerWithLayout(layout.NewHBoxLayout(), entry, dialogSelect))
-	formItem.HintText = "The path to the WebMesh configuration file."
+	formItem := widget.NewFormItem("Node Socket", nodeSocketInput)
+	formItem.HintText = "The socket to use to connect to the node."
 	return formItem
 }
 
@@ -242,5 +192,20 @@ func (app *App) protocolFormItem() *widget.FormItem {
 	ipv6Check := widget.NewCheckWithData("Disable IPv6", disableIPv6)
 	formItem := widget.NewFormItem("Protocol", fyne.NewContainerWithLayout(layout.NewHBoxLayout(), ipv4Check, ipv6Check))
 	formItem.HintText = "Protocol options for the mesh"
+	return formItem
+}
+
+func (app *App) turnServersFormItem() *widget.FormItem {
+	turnServerPreferences := app.Preferences().StringWithFallback(preferenceTURNServers, "")
+	var turnServerStrs []string
+	if turnServerPreferences != "" {
+		turnServerStrs = strings.Split(turnServerPreferences, ",")
+	}
+	turnServers.Set(strings.Join(turnServerStrs, "\n"))
+	list := widget.NewEntryWithData(turnServers)
+	list.MultiLine = true
+	list.PlaceHolder = "turn:example.com:3478"
+	formItem := widget.NewFormItem("TURN Servers", list)
+	formItem.HintText = "Newline separated list of TURN servers to use for NAT traversal"
 	return formItem
 }

@@ -14,12 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package app
 
 import (
-	"github.com/webmeshproj/app/internal/app"
+	"strings"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-func main() {
-	app.New().Run()
+func (app *App) dialNode() (*grpc.ClientConn, error) {
+	socket := app.Preferences().StringWithFallback(preferenceNodeSocket, "tcp://127.0.0.1:8080")
+	socket = strings.TrimPrefix(socket, "tcp://")
+	c, err := grpc.Dial(socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		app.log.Error("failed to connect to node", "error", err.Error())
+		return nil, err
+	}
+	return c, nil
 }

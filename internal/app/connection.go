@@ -18,14 +18,11 @@ package app
 
 import (
 	"context"
-	"runtime"
 	"strconv"
 	"time"
 
 	"fyne.io/fyne/v2/data/binding"
-	"github.com/webmeshproj/webmesh/pkg/net/wireguard"
-
-	"github.com/webmeshproj/app/internal/daemon"
+	v1 "github.com/webmeshproj/api/v1"
 )
 
 var (
@@ -51,47 +48,20 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 		switch val {
 		case switchConnecting:
 			// Connect to the mesh if not connected and profile has changed.
-			profile, err := app.currentProfile.Get()
-			if err != nil {
-				app.log.Error("error getting profile", "error", err.Error())
-				// TODO: Display error.
-				switchValue.Set(switchDisconnected)
-				return
-			} else if profile == "" || profile == noProfiles {
-				app.log.Info("current configuration has no profiles")
-				switchValue.Set(switchDisconnected)
-				return
-			}
-			app.log.Info("connecting to mesh", "profile", profile)
+			app.connecting.Store(true)
+			app.log.Info("connecting to mesh")
 			label.Set("Connecting")
-			requiresTUN := runtime.GOOS != "linux" && runtime.GOOS != "freebsd"
 			go func() {
-				err = app.cli.Connect(context.Background(), daemon.ConnectOptions{
-					Profile:       profile,
-					InterfaceName: app.Preferences().StringWithFallback(preferenceInterfaceName, wireguard.DefaultInterfaceName),
-					ForceTUN:      app.Preferences().BoolWithFallback(preferenceForceTUN, requiresTUN),
-					ListenPort: func() uint16 {
-						v, _ := strconv.ParseUint(app.Preferences().StringWithFallback(preferenceWireGuardPort, "51820"), 10, 16)
-						return uint16(v)
-					}(),
-					RaftPort: func() uint16 {
-						v, _ := strconv.ParseUint(app.Preferences().StringWithFallback(preferenceRaftPort, "9443"), 10, 16)
-						return uint16(v)
-					}(),
-					GRPCPort: func() uint16 {
-						v, _ := strconv.ParseUint(app.Preferences().StringWithFallback(preferenceGRPCPort, "8443"), 10, 16)
-						return uint16(v)
-					}(),
-					NoIPv4: app.Preferences().BoolWithFallback(preferenceDisableIPv4, false),
-					NoIPv6: app.Preferences().BoolWithFallback(preferenceDisableIPv6, false),
-					ConnectTimeout: func() int {
-						d, _ := time.ParseDuration(app.Preferences().StringWithFallback(preferenceConnectTimeout, "30s"))
-						return int(d.Seconds())
-					}(),
-					// TODO:
-					LocalDNS:     false,
-					LocalDNSPort: 0,
-				})
+				defer app.connecting.Store(false)
+				c, err := app.dialNode()
+				if err != nil {
+					app.log.Error("error dialing node", "error", err.Error())
+					label.Set("Disconnected")
+					switchValue.Set(switchDisconnected)
+					return
+				}
+				defer c.Close()
+				_, err = v1.NewAppDaemonClient(c).Connect(context.Background(), &v1.ConnectRequest{})
 				if err != nil {
 					app.log.Error("error connecting to mesh", "error", err.Error())
 					// TODO: Display error.
@@ -104,14 +74,26 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 		case switchConnected:
 			label.Set("Connected")
 			ctx := context.Background()
-			metrics, err := app.cli.InterfaceMetrics(ctx)
+			c, err := app.dialNode()
 			if err != nil {
+				app.log.Error("error dialing node socket", "error", err.Error())
+				return
+			}
+			cli := v1.NewAppDaemonClient(c)
+			resp, err := cli.Metrics(ctx, &v1.MetricsRequest{})
+			if err != nil {
+				defer c.Close()
 				app.log.Error("error getting interface metrics", "error", err.Error())
 				return
+			}
+			var metrics *v1.InterfaceMetrics
+			for _, m := range resp.Interfaces {
+				metrics = m
 			}
 			connectedInterface.Set(metrics.DeviceName)
 			ctx, app.cancelMetrics = context.WithCancel(ctx)
 			go func() {
+				defer c.Close()
 				t := time.NewTicker(time.Second * 5)
 				defer t.Stop()
 				for {
@@ -119,10 +101,14 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 					case <-ctx.Done():
 						return
 					case <-t.C:
-						metrics, err = app.cli.InterfaceMetrics(ctx)
+						resp, err := cli.Metrics(ctx, &v1.MetricsRequest{})
 						if err != nil {
 							app.log.Error("error getting interface metrics", "error", err.Error())
 							continue
+						}
+						var metrics *v1.InterfaceMetrics
+						for _, m := range resp.Interfaces {
+							metrics = m
 						}
 						totalSentBytes.Set(bytesString(int(metrics.TotalTransmitBytes)))
 						totalRecvBytes.Set(bytesString(int(metrics.TotalReceiveBytes)))
@@ -136,15 +122,21 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			}
 			defer resetConnectedValues()
 			app.log.Info("disconnecting from mesh")
-			if app.cli.Connecting() {
+			if app.connecting.Load() {
 				app.log.Info("cancelling in-progress connection")
-				app.cli.CancelConnect()
+				// app.cli.CancelConnect() // TODO: Implement.
 			}
 			go func() {
-				err := app.cli.Disconnect(context.Background())
-				if err != nil && !daemon.IsNotConnected(err) {
+				c, err := app.dialNode()
+				if err != nil {
+					app.log.Error("error dialing node socket", "error", err.Error())
+					return
+				}
+				cli := v1.NewAppDaemonClient(c)
+				defer c.Close()
+				_, err = cli.Disconnect(context.Background(), &v1.DisconnectRequest{})
+				if err != nil {
 					app.log.Error("error disconnecting from mesh", "error", err.Error())
-					// Handle the error.
 				}
 				label.Set("Disconnected")
 			}()
