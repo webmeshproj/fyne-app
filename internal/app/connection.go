@@ -44,6 +44,7 @@ func resetConnectedValues() {
 
 // onConnectChange fires when the value of the connected switch changes.
 func (app *App) onConnectChange(label binding.String, switchValue binding.Float) func() {
+	var connected bool
 	return func() {
 		val, err := switchValue.Get()
 		if err != nil {
@@ -99,6 +100,7 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 				}
 				switchValue.Set(switchConnected)
 				app.newCampButton.Enable()
+				connected = true
 			}()
 		case switchConnected:
 			label.Set("Connected")
@@ -151,6 +153,9 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 				app.cancelMetrics()
 			}
 			defer resetConnectedValues()
+			if !connected {
+				return
+			}
 			app.log.Info("disconnecting from mesh")
 			if app.connecting.Load() {
 				app.log.Info("cancelling in-progress connection")
@@ -174,6 +179,8 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 				}
 				app.newCampButton.Disable()
 				label.Set("Disconnected")
+				campfireURL.Set("")
+				connected = false
 			}()
 		}
 	}

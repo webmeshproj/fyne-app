@@ -76,7 +76,7 @@ func (app *App) setup() {
 	connected.AddListener(binding.NewDataListener(app.onConnectChange(connectedText, connected)))
 	campfileEntry := widget.NewEntryWithData(campfireURL)
 	campfileEntry.Wrapping = fyne.TextWrapOff
-	campfileEntry.SetPlaceHolder("camp://")
+	campfileEntry.SetPlaceHolder("Campfire URI")
 	campfileEntry.SetMinRowsVisible(1)
 	app.newCampButton = widget.NewButton("New Campfire", app.onNewCampfire)
 	app.newCampButton.Alignment = widget.ButtonAlignTrailing
@@ -84,7 +84,6 @@ func (app *App) setup() {
 	header := container.New(layout.NewHBoxLayout(),
 		connectSwitch, connectedLabel,
 		layout.NewSpacer(),
-		widget.NewLabel("Campfire URL"),
 		campfileEntry,
 		app.newCampButton,
 	)
