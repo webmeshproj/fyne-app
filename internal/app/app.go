@@ -31,10 +31,10 @@ import (
 	v1 "github.com/webmeshproj/api/v1"
 )
 
-// appID is the application ID.
-const appID = "com.webmeshproj.app"
-
-var nodeID = binding.NewString()
+const (
+	// AppID is the application ID.
+	AppID = "com.webmeshproj.app"
+)
 
 // App is the application.
 type App struct {
@@ -42,6 +42,10 @@ type App struct {
 	fyne.App
 	// main is the main window.
 	main fyne.Window
+	// nodeID is the ID of the node.
+	nodeID binding.String
+	// campfireURL is the current campfire URL.
+	campfireURL binding.String
 	// cancelMetrics is the cancel function for stopping the metrics updater.
 	cancelMetrics context.CancelFunc
 	// cancelConnect is the cancel function for stopping the an in-progress connection.
@@ -52,20 +56,29 @@ type App struct {
 	connected atomic.Bool
 	// newCampButton is the button for creating a new campfire.
 	newCampButton *widget.Button
+	// roomsList is the widget containing the list of rooms.
+	roomsList binding.StringList
+	// chatContainer is the container for the chat room.
+	chatContainer *fyne.Container
+	// chatTextGrid is the grid for the chat text.
+	chatTextGrid *widget.TextGrid
 	// log is the application logger.
 	log *slog.Logger
 }
 
 // New sets up and returns a new application.
 func New(socketAddr string) *App {
-	a := app.NewWithID(appID)
+	a := app.NewWithID(AppID)
 	app := &App{
 		App:           a,
-		main:          a.NewWindow("WebMesh"),
+		main:          a.NewWindow("Webmesh Campfire"),
+		nodeID:        binding.NewString(),
+		campfireURL:   binding.NewString(),
 		newCampButton: widget.NewButton("New Campfire", func() {}),
-		log:           slog.Default(),
+		roomsList:     binding.NewStringList(),
 		cancelMetrics: func() {},
 		cancelConnect: func() {},
+		log:           slog.Default(),
 	}
 	if socketAddr != "" {
 		nodeSocket.Set(socketAddr)
@@ -89,17 +102,17 @@ func (app *App) setup() {
 	connectedLabel := widget.NewLabelWithData(connectedText)
 	connectSwitch, connected := newConnectSwitch()
 	connected.AddListener(binding.NewDataListener(app.onConnectChange(connectedText, connected)))
-	campfileEntry := widget.NewEntryWithData(campfireURL)
+	campfileEntry := widget.NewEntryWithData(app.campfireURL)
 	campfileEntry.Wrapping = fyne.TextWrapOff
 	campfileEntry.SetPlaceHolder("Campfire URI")
 	campfileEntry.SetMinRowsVisible(1)
 	campfileEntry.OnChanged = func(s string) {
-		campfireURL.Set(s)
+		app.campfireURL.Set(s)
 	}
 	app.newCampButton = widget.NewButton("New Campfire", app.onNewCampfire)
 	app.newCampButton.Alignment = widget.ButtonAlignTrailing
 	app.newCampButton.Disable()
-	nodeIDWidget := widget.NewLabelWithData(nodeID)
+	nodeIDWidget := widget.NewLabelWithData(app.nodeID)
 	nodeIDWidget.Alignment = fyne.TextAlignTrailing
 	nodeIDWidget.TextStyle = fyne.TextStyle{Italic: true}
 	header := container.New(layout.NewHBoxLayout(),
@@ -117,6 +130,26 @@ func (app *App) setup() {
 	sentLabel.TextStyle.Bold = true
 	rcvdLabel.TextStyle.Bold = true
 
+	// Chat rooms
+	newRoomLabel := func() fyne.CanvasObject { return widget.NewLabel("") }
+	renderRoom := func(item binding.DataItem, obj fyne.CanvasObject) {
+		obj.(*widget.Label).Bind(item.(binding.String))
+	}
+	roomsList := widget.NewListWithData(app.roomsList, newRoomLabel, renderRoom)
+	roomsList.OnSelected = app.onRoomSelected
+	roomsList.OnUnselected = app.onRoomUnselected
+	roomsContainer := container.New(layout.NewVBoxLayout(),
+		widget.NewButton("New Room", app.onNewChatRoom),
+		widget.NewLabel("Chat Rooms"), roomsList,
+	)
+	app.chatTextGrid = widget.NewTextGrid()
+	app.chatContainer = container.New(layout.NewHBoxLayout(),
+		roomsContainer,
+		widget.NewSeparator(),
+		app.chatTextGrid,
+	)
+	app.chatContainer.Hide()
+
 	body := container.New(layout.NewVBoxLayout(),
 		container.New(layout.NewHBoxLayout(),
 			ifaceLabel, widget.NewLabelWithData(connectedInterface), layout.NewSpacer()),
@@ -125,6 +158,7 @@ func (app *App) setup() {
 		container.New(layout.NewHBoxLayout(),
 			rcvdLabel, widget.NewLabelWithData(totalRecvBytes), layout.NewSpacer()),
 		widget.NewSeparator(),
+		app.chatContainer,
 	)
 	resetConnectedValues()
 	app.main.SetContent(container.New(layout.NewVBoxLayout(),

@@ -54,7 +54,7 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			app.connecting.Store(true)
 			app.log.Info("connecting to mesh")
 			label.Set("Connecting")
-			campURL, _ := campfireURL.Get()
+			campURL, _ := app.campfireURL.Get()
 			var opts v1.ConnectRequest
 			if campURL != "" {
 				opts.CampfireUri = campURL
@@ -77,7 +77,8 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 				app.newCampButton.Enable()
 				app.connected.Store(true)
 				nodeFQDN := fmt.Sprintf("%s.%s", resp.GetNodeId(), resp.GetMeshDomain())
-				nodeID.Set(fmt.Sprintf("Connected as %q", nodeFQDN))
+				app.nodeID.Set(fmt.Sprintf("Connected as %q", nodeFQDN))
+				app.chatContainer.Show()
 			}()
 		case switchConnected:
 			label.Set("Connected")
@@ -130,11 +131,14 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 						dialog.ShowError(fmt.Errorf("error disconnecting from mesh: %w", err), app.main)
 					}
 				}
-				app.newCampButton.Disable()
 				label.Set("Disconnected")
-				campfireURL.Set("")
+				app.newCampButton.Disable()
+				app.campfireURL.Set("")
 				app.connected.Store(false)
-				nodeID.Set("")
+				app.nodeID.Set("")
+				app.chatContainer.Hide()
+				app.chatTextGrid.SetText("")
+				app.roomsList.Set([]string{})
 			}()
 		}
 	}

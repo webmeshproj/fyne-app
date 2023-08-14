@@ -20,15 +20,44 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
-	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/widget"
+	v1 "github.com/webmeshproj/api/v1"
 	"github.com/webmeshproj/webmesh/pkg/campfire"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-var campfireURL = binding.NewString()
+const (
+	// CampFirePrefix is the storage prefix for the campfire chat.
+	CampFirePrefix = "/campfire-chat"
+	// RoomsPrefix is the prefix for campfire chat rooms.
+	RoomsPrefix = CampFirePrefix + "/rooms"
+)
+
+// RoomPath returns the storage path for a room.
+func RoomPath(roomName string) string {
+	return path.Join(RoomsPrefix, roomName)
+}
+
+// MembersPath returns the storage path for a room's members.
+func MembersPath(roomName string) string {
+	return path.Join(RoomPath(roomName), "members")
+}
+
+// MessagesPath returns the storage path for a room's messages.
+func MessagesPath(roomName string) string {
+	return path.Join(RoomPath(roomName), "messages")
+}
+
+// NewMessageKey returns a new message key for publishing to a room.
+func NewMessageKey(roomName string, from string) string {
+	t := time.Now().UTC().Format(time.RFC3339Nano)
+	return path.Join(MessagesPath(roomName), t, from)
+}
 
 func (app *App) onNewCampfire() {
 	psk, err := campfire.GeneratePSK()
@@ -57,5 +86,75 @@ func (app *App) onNewCampfire() {
 		dialog.ShowError(fmt.Errorf("failed to start campfire: %w", err), app.main)
 		return
 	}
-	campfireURL.Set(uri.EncodeURI())
+	app.campfireURL.Set(uri.EncodeURI())
+}
+
+func (app *App) onNewChatRoom() {
+	if app.chatContainer.Hidden {
+		return
+	}
+	roomName := widget.NewEntry()
+	roomName.Validator = func(s string) error {
+		if strings.TrimSpace(s) == "" {
+			return errors.New("room name cannot be empty")
+		}
+		current, _ := app.roomsList.Get()
+		for _, r := range current {
+			if r == s {
+				return errors.New("room already exists")
+			}
+		}
+		return nil
+	}
+	selfDestruct := widget.NewEntry()
+	selfDestruct.SetText("1h")
+	selfDestruct.Validator = func(s string) error {
+		if strings.TrimSpace(s) == "" {
+			return nil
+		}
+		_, err := time.ParseDuration(s)
+		return err
+	}
+	dialog.ShowForm("New Chat Room", "Create", "Cancel", []*widget.FormItem{
+		widget.NewFormItem("Room Name", roomName),
+		widget.NewFormItem("Self Destruct", selfDestruct),
+	}, func(ok bool) {
+		if !ok {
+			return
+		}
+		roomName := strings.TrimSpace(roomName.Text)
+		var ttl time.Duration
+		if strings.TrimSpace(selfDestruct.Text) != "" {
+			ttl, _ = time.ParseDuration(selfDestruct.Text)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+		err := app.doPublish(ctx, &v1.PublishRequest{
+			Key: RoomPath(roomName),
+			Ttl: durationpb.New(ttl),
+		})
+		if err != nil {
+			app.log.Error("error creating room", "error", err.Error())
+			dialog.ShowError(err, app.main)
+			return
+		}
+		err = app.roomsList.Append(roomName)
+		if err != nil {
+			app.log.Error("error appending room", "error", err.Error())
+			dialog.ShowError(err, app.main)
+			return
+		}
+	}, app.main)
+}
+
+func (app *App) onRoomSelected(index int) {
+	if app.chatContainer.Hidden {
+		return
+	}
+}
+
+func (app *App) onRoomUnselected(index int) {
+	if app.chatContainer.Hidden {
+		return
+	}
 }

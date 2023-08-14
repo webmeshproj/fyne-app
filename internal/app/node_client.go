@@ -75,6 +75,16 @@ func (app *App) startCampfire(ctx context.Context, uri *campfire.CampfireURI) er
 	return err
 }
 
+func (app *App) doPublish(ctx context.Context, req *v1.PublishRequest) error {
+	c, err := app.dialNode(ctx)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+	_, err = v1.NewAppDaemonClient(c).Publish(ctx, req)
+	return err
+}
+
 func (app *App) dialNode(ctx context.Context) (*grpc.ClientConn, error) {
 	socketAddr, err := nodeSocket.Get()
 	if err != nil {
