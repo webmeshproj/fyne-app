@@ -17,11 +17,50 @@ limitations under the License.
 package app
 
 import (
+	"context"
+	"fmt"
 	"strings"
 
+	v1 "github.com/webmeshproj/api/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+func (app *App) doConnect(opts *v1.ConnectRequest) (*v1.ConnectResponse, error) {
+	c, err := app.dialNode()
+	if err != nil {
+		return nil, err
+	}
+	defer c.Close()
+	return v1.NewAppDaemonClient(c).Connect(context.Background(), opts)
+}
+
+func (app *App) doDisconnect() error {
+	c, err := app.dialNode()
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+	cli := v1.NewAppDaemonClient(c)
+	_, err = cli.Disconnect(context.Background(), &v1.DisconnectRequest{})
+	return err
+}
+
+func (app *App) getNodeMetrics() (*v1.InterfaceMetrics, error) {
+	c, err := app.dialNode()
+	if err != nil {
+		return nil, err
+	}
+	defer c.Close()
+	resp, err := v1.NewAppDaemonClient(c).Metrics(context.Background(), &v1.MetricsRequest{})
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range resp.GetInterfaces() {
+		return m, nil
+	}
+	return nil, fmt.Errorf("no metrics returned")
+}
 
 func (app *App) dialNode() (*grpc.ClientConn, error) {
 	socket := app.Preferences().StringWithFallback(preferenceNodeSocket, "tcp://127.0.0.1:8080")

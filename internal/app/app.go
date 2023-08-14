@@ -33,6 +33,8 @@ import (
 // appID is the application ID.
 const appID = "com.webmeshproj.app"
 
+var nodeID = binding.NewString()
+
 // App is the application.
 type App struct {
 	// App is the fyne application.
@@ -87,8 +89,11 @@ func (app *App) setup() {
 	app.newCampButton = widget.NewButton("New Campfire", app.onNewCampfire)
 	app.newCampButton.Alignment = widget.ButtonAlignTrailing
 	app.newCampButton.Disable()
+	nodeIDWidget := widget.NewLabelWithData(nodeID)
+	nodeIDWidget.Alignment = fyne.TextAlignTrailing
+	nodeIDWidget.TextStyle = fyne.TextStyle{Italic: true}
 	header := container.New(layout.NewHBoxLayout(),
-		connectSwitch, connectedLabel,
+		connectSwitch, connectedLabel, nodeIDWidget,
 		layout.NewSpacer(),
 		campfileEntry,
 		app.newCampButton,

@@ -83,16 +83,7 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			}
 			go func() {
 				defer app.connecting.Store(false)
-				c, err := app.dialNode()
-				if err != nil {
-					app.log.Error("error dialing node", "error", err.Error())
-					dialog.ShowError(fmt.Errorf("error dialing node: %w", err), app.main)
-					label.Set("Disconnected")
-					switchValue.Set(switchDisconnected)
-					return
-				}
-				defer c.Close()
-				_, err = v1.NewAppDaemonClient(c).Connect(context.Background(), &opts)
+				resp, err := app.doConnect(&opts)
 				if err != nil {
 					app.log.Error("error connecting to mesh", "error", err.Error())
 					dialog.ShowError(fmt.Errorf("error connecting to mesh: %w", err), app.main)
@@ -103,31 +94,20 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 				switchValue.Set(switchConnected)
 				app.newCampButton.Enable()
 				app.connected.Store(true)
+				nodeFQDN := fmt.Sprintf("%s.%s", resp.GetNodeId(), resp.GetMeshDomain())
+				nodeID.Set(fmt.Sprintf("Connected as %q", nodeFQDN))
 			}()
 		case switchConnected:
 			label.Set("Connected")
 			ctx := context.Background()
-			c, err := app.dialNode()
+			metrics, err := app.getNodeMetrics()
 			if err != nil {
-				app.log.Error("error dialing node socket", "error", err.Error())
-				dialog.ShowError(fmt.Errorf("error dialing node socket: %w", err), app.main)
-				return
-			}
-			cli := v1.NewAppDaemonClient(c)
-			resp, err := cli.Metrics(ctx, &v1.MetricsRequest{})
-			if err != nil {
-				defer c.Close()
 				app.log.Error("error getting interface metrics", "error", err.Error())
 				return
-			}
-			var metrics *v1.InterfaceMetrics
-			for _, m := range resp.Interfaces {
-				metrics = m
 			}
 			connectedInterface.Set(metrics.DeviceName)
 			ctx, app.cancelMetrics = context.WithCancel(ctx)
 			go func() {
-				defer c.Close()
 				t := time.NewTicker(time.Second * 5)
 				defer t.Stop()
 				for {
@@ -135,14 +115,10 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 					case <-ctx.Done():
 						return
 					case <-t.C:
-						resp, err := cli.Metrics(ctx, &v1.MetricsRequest{})
+						metrics, err := app.getNodeMetrics()
 						if err != nil {
 							app.log.Error("error getting interface metrics", "error", err.Error())
 							continue
-						}
-						var metrics *v1.InterfaceMetrics
-						for _, m := range resp.Interfaces {
-							metrics = m
 						}
 						totalSentBytes.Set(bytesString(int(metrics.TotalTransmitBytes)))
 						totalRecvBytes.Set(bytesString(int(metrics.TotalReceiveBytes)))
@@ -164,15 +140,7 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 				// app.cli.CancelConnect() // TODO: Implement.
 			}
 			go func() {
-				c, err := app.dialNode()
-				if err != nil {
-					app.log.Error("error dialing node socket", "error", err.Error())
-					dialog.ShowError(fmt.Errorf("error dialing node socket: %w", err), app.main)
-					return
-				}
-				cli := v1.NewAppDaemonClient(c)
-				defer c.Close()
-				_, err = cli.Disconnect(context.Background(), &v1.DisconnectRequest{})
+				err := app.doDisconnect()
 				if err != nil {
 					if !strings.Contains(err.Error(), "not connected") {
 						app.log.Error("error disconnecting from mesh", "error", err.Error())
@@ -183,6 +151,7 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 				label.Set("Disconnected")
 				campfireURL.Set("")
 				app.connected.Store(false)
+				nodeID.Set("")
 			}()
 		}
 	}
