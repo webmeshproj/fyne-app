@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	v1 "github.com/webmeshproj/api/v1"
+	"github.com/webmeshproj/webmesh/pkg/campfire"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -60,6 +61,18 @@ func (app *App) getNodeMetrics() (*v1.InterfaceMetrics, error) {
 		return m, nil
 	}
 	return nil, fmt.Errorf("no metrics returned")
+}
+
+func (app *App) startCampfire(uri *campfire.CampfireURI) error {
+	c, err := app.dialNode()
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+	_, err = v1.NewAppDaemonClient(c).StartCampfire(context.Background(), &v1.StartCampfireRequest{
+		CampUrl: uri.EncodeURI(),
+	})
+	return err
 }
 
 func (app *App) dialNode() (*grpc.ClientConn, error) {

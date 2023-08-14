@@ -17,14 +17,12 @@ limitations under the License.
 package app
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
 
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
-	v1 "github.com/webmeshproj/api/v1"
 	"github.com/webmeshproj/webmesh/pkg/campfire"
 )
 
@@ -47,19 +45,10 @@ func (app *App) onNewCampfire() {
 		PSK:         psk,
 		TURNServers: campTurnServers,
 	}
-	encoded := uri.EncodeURI()
-	c, err := app.dialNode()
-	if err != nil {
-		dialog.ShowError(fmt.Errorf("failed to dial node daemon: %w", err), app.main)
-		return
-	}
-	defer c.Close()
-	_, err = v1.NewAppDaemonClient(c).StartCampfire(context.Background(), &v1.StartCampfireRequest{
-		CampUrl: encoded,
-	})
+	err = app.startCampfire(uri)
 	if err != nil {
 		dialog.ShowError(fmt.Errorf("failed to start campfire: %w", err), app.main)
 		return
 	}
-	campfireURL.Set(encoded)
+	campfireURL.Set(uri.EncodeURI())
 }
