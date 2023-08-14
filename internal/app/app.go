@@ -63,7 +63,9 @@ func New(socketAddr string) *App {
 		log:           slog.Default(),
 	}
 	if socketAddr != "" {
-		app.Preferences().SetString(preferenceNodeSocket, socketAddr)
+		nodeSocket.Set(socketAddr)
+	} else {
+		nodeSocket.Set(app.Preferences().StringWithFallback(preferenceNodeSocket, "tcp://127.0.0.1:8080"))
 	}
 	app.setup()
 	app.main.Show()
@@ -86,6 +88,9 @@ func (app *App) setup() {
 	campfileEntry.Wrapping = fyne.TextWrapOff
 	campfileEntry.SetPlaceHolder("Campfire URI")
 	campfileEntry.SetMinRowsVisible(1)
+	campfileEntry.OnChanged = func(s string) {
+		campfireURL.Set(s)
+	}
 	app.newCampButton = widget.NewButton("New Campfire", app.onNewCampfire)
 	app.newCampButton.Alignment = widget.ButtonAlignTrailing
 	app.newCampButton.Disable()

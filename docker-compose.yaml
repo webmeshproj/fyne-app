@@ -38,14 +38,20 @@ services:
   site-1:
     image: ${IMAGE:-ghcr.io/webmeshproj/node:latest}
     networks:
-      - site-1
+      public-net:
+        ipv4_address: 10.1.0.2
+      site-1:
     hostname: site-1
     entrypoint:
       - /webmesh-node
       - --global.insecure
+      - --global.detect-endpoints
+      - --global.detect-private-endpoints
       - --global.no-ipv6
       - --bootstrap.enabled
       - --raft.in-memory
+      - --services.api.webrtc
+      - --services.api.stun-servers=stun:10.1.0.1:3478
       - --app-daemon
       - --app-daemon-bind=0.0.0.0:8081
     ports:
@@ -55,14 +61,20 @@ services:
   site-2:
     image: ${IMAGE:-ghcr.io/webmeshproj/node:latest}
     networks:
-      - site-2
+      public-net:
+        ipv4_address: 10.1.0.3
+      site-2:
     hostname: site-2
     entrypoint:
       - /webmesh-node
       - --global.insecure
+      - --global.detect-endpoints
+      - --global.detect-private-endpoints
       - --global.no-ipv6
       - --bootstrap.enabled
       - --raft.in-memory
+      - --services.api.webrtc
+      - --services.api.stun-servers=stun:10.1.0.1:3478
       - --app-daemon
       - --app-daemon-bind=0.0.0.0:8082
     ports:
@@ -72,14 +84,20 @@ services:
   site-3:
     image: ${IMAGE:-ghcr.io/webmeshproj/node:latest}
     networks:
-      - site-3
+      public-net:
+        ipv4_address: 10.1.0.4
+      site-3:
     hostname: site-3
     entrypoint:
       - /webmesh-node
       - --global.insecure
+      - --global.detect-endpoints
+      - --global.detect-private-endpoints
       - --global.no-ipv6
       - --bootstrap.enabled
       - --raft.in-memory
+      - --services.api.webrtc
+      - --services.api.stun-servers=stun:10.1.0.1:3478
       - --app-daemon
       - --app-daemon-bind=0.0.0.0:8083
     ports:

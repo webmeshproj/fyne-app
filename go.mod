@@ -6,10 +6,9 @@ toolchain go1.21.0
 
 require (
 	fyne.io/fyne/v2 v2.3.5
-	github.com/webmeshproj/api v0.2.2-0.20230814164120-7f9b439ea8d3
-	github.com/webmeshproj/webmesh v0.1.14-0.20230814165654-b71064d164ee
+	github.com/webmeshproj/api v0.2.2-0.20230814182339-969e74f1fb90
+	github.com/webmeshproj/webmesh v0.1.14-0.20230814183019-ebafb71ee990
 	google.golang.org/grpc v1.57.0
-	google.golang.org/protobuf v1.31.0
 )
 
 require (
@@ -79,6 +78,7 @@ require (
 	golang.zx2c4.com/wireguard v0.0.0-20230704135630-469159ecf7d1 // indirect
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230803162519-f966b187b2e5 // indirect
+	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	honnef.co/go/js/dom v0.0.0-20210725211120-f030747120f2 // indirect
 )

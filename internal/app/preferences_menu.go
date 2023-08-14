@@ -108,8 +108,7 @@ func (app *App) displayPreferences() {
 }
 
 func (app *App) socketFormItem() *widget.FormItem {
-	socket := app.Preferences().StringWithFallback(preferenceNodeSocket, "tcp://127.0.0.1:8080")
-	nodeSocket.Set(socket)
+	// nodeSocket binding is populated in the main function.
 	nodeSocketInput := widget.NewEntryWithData(nodeSocket)
 	nodeSocketInput.Wrapping = fyne.TextWrapOff
 	nodeSocketInput.OnChanged = func(s string) {

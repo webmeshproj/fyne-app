@@ -76,8 +76,11 @@ func (app *App) startCampfire(uri *campfire.CampfireURI) error {
 }
 
 func (app *App) dialNode() (*grpc.ClientConn, error) {
-	socket := app.Preferences().StringWithFallback(preferenceNodeSocket, "tcp://127.0.0.1:8080")
-	socket = strings.TrimPrefix(socket, "tcp://")
+	socketAddr, err := nodeSocket.Get()
+	if err != nil {
+		return nil, err
+	}
+	socket := strings.TrimPrefix(socketAddr, "tcp://")
 	c, err := grpc.Dial(socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		app.log.Error("failed to connect to node", "error", err.Error())

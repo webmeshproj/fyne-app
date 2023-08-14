@@ -26,8 +26,6 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	v1 "github.com/webmeshproj/api/v1"
-	"github.com/webmeshproj/webmesh/pkg/campfire"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 var (
@@ -57,29 +55,9 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			app.log.Info("connecting to mesh")
 			label.Set("Connecting")
 			campURL, _ := campfireURL.Get()
-			connectCfg := make(map[string]any)
-			if campURL != "" {
-				parsed, err := campfire.ParseCampfireURI(campURL)
-				if err != nil {
-					app.log.Error("error parsing campfire url", "error", err.Error())
-					dialog.ShowError(fmt.Errorf("invaid Campfire URL"), app.main)
-					return
-				}
-				connectCfg["mesh"] = map[string]any{
-					"join-campfire-psk":          string(parsed.PSK),
-					"join-campfire-turn-servers": parsed.TURNServers,
-				}
-				connectCfg["bootstrap"] = map[string]any{
-					"enabled": false,
-				}
-			}
 			var opts v1.ConnectRequest
-			var err error
-			opts.Config, err = structpb.NewStruct(connectCfg)
-			if err != nil {
-				app.log.Error("error creating connect config", "error", err.Error())
-				dialog.ShowError(fmt.Errorf("error creating connect config: %w", err), app.main)
-				return
+			if campURL != "" {
+				opts.CampfireUri = campURL
 			}
 			go func() {
 				defer app.connecting.Store(false)
@@ -127,18 +105,19 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			}()
 		case switchDisconnected:
 			// Disconnect from the mesh.
+			defer resetConnectedValues()
 			if app.cancelMetrics != nil {
 				app.cancelMetrics()
 			}
-			defer resetConnectedValues()
+			if app.connecting.Load() {
+				app.log.Info("cancelling in-progress connection")
+				// app.cli.CancelConnect() // TODO: Implement.
+				return
+			}
 			if !app.connected.Load() {
 				return
 			}
 			app.log.Info("disconnecting from mesh")
-			if app.connecting.Load() {
-				app.log.Info("cancelling in-progress connection")
-				// app.cli.CancelConnect() // TODO: Implement.
-			}
 			go func() {
 				err := app.doDisconnect()
 				if err != nil {

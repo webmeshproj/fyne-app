@@ -41,6 +41,9 @@ func (app *App) onNewCampfire() {
 		return
 	}
 	campTurnServers := strings.Split(strings.TrimSpace(turnServersPref), ",")
+	for i, server := range campTurnServers {
+		campTurnServers[i] = strings.TrimPrefix(server, "turn:")
+	}
 	uri := &campfire.CampfireURI{
 		PSK:         psk,
 		TURNServers: campTurnServers,

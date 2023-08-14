@@ -26,3 +26,9 @@ webmesh-turn --app-daemon --app-daemon-bind tcp://127.0.0.1:8080
 By default, on unix-like systems, the daemon will listen on a unix socket at `/var/run/webmesh/webmesh.sock`.
 The permissions of the socket will be set to 770 with an ownership of `root:root` or `root:webmesh` if the group exists.
 This will be the preferred method of communication for deployment targets.
+
+To start an app pre-set to a specific socket address you can pass the `--socket-addr` flag to the app.
+
+```sh
+go run main.go --socket-addr tcp://127.0.0.1:8080
+```
