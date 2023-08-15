@@ -70,6 +70,8 @@ type App struct {
 	chatText *widget.TextGrid
 	// chatGrid is the container containg the chat text and input.
 	chatGrid *fyne.Container
+	// chatInput is the input for the chat.
+	chatInput *widget.Entry
 	// joinRooms is the list of joined rooms.
 	joinRooms []string
 	// selectedRoom is the currently selected room.
@@ -90,6 +92,7 @@ func New(socketAddr string) *App {
 		newCampButton:           widget.NewButton("New Campfire", func() {}),
 		roomsList:               binding.NewStringList(),
 		chatText:                widget.NewTextGrid(),
+		chatInput:               widget.NewEntry(),
 		cancelNodeSubscriptions: func() {},
 		cancelConnect:           func() {},
 		log:                     slog.Default(),
@@ -160,12 +163,10 @@ func (app *App) setup() {
 		app.roomsListWidget,
 	)
 	roomBox := container.New(layout.NewHBoxLayout(), roomsContainer, widget.NewSeparator())
-	chatInput := widget.NewEntry()
-	chatInput.SetPlaceHolder("Enter message (Shift + Enter to send)")
-	chatInput.OnSubmitted = app.onSendMessage
-	chatInput.MultiLine = true
-	chatInput.Wrapping = fyne.TextWrapWord
-	app.chatGrid = container.New(layout.NewBorderLayout(nil, chatInput, nil, nil), app.chatText, chatInput)
+	app.chatInput.SetPlaceHolder("Enter message")
+	app.chatInput.OnSubmitted = app.onSendMessage
+	app.chatInput.Wrapping = fyne.TextWrapWord
+	app.chatGrid = container.New(layout.NewBorderLayout(nil, app.chatInput, nil, nil), app.chatText, app.chatInput)
 	app.chatContainer = container.New(layout.NewBorderLayout(nil, nil, roomBox, nil),
 		roomBox,
 		app.chatGrid,

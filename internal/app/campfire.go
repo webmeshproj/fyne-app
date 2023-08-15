@@ -292,6 +292,9 @@ func (app *App) onRoomSelected(index int) {
 }
 
 func (app *App) onSendMessage(s string) {
+	if s == "" {
+		return
+	}
 	nodeID, _ := app.nodeID.Get()
 	key := NewMessageKey(app.selectedRoom, nodeID)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
@@ -304,6 +307,7 @@ func (app *App) onSendMessage(s string) {
 		app.log.Error("error sending message", "error", err.Error())
 		return
 	}
+	app.chatInput.SetText("")
 }
 
 func (app *App) onRoomUnselected(index int) {
