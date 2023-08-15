@@ -160,13 +160,12 @@ func (app *App) setup() {
 		container.New(layout.NewHBoxLayout(),
 			rcvdLabel, widget.NewLabelWithData(totalRecvBytes), layout.NewSpacer()),
 		widget.NewSeparator(),
-		app.chatContainer,
 	)
 	resetConnectedValues()
-	app.main.SetContent(container.New(layout.NewVBoxLayout(),
-		header,
-		widget.NewSeparator(),
-		body,
+	top := container.New(layout.NewVBoxLayout(), header, body)
+	app.main.SetContent(container.New(layout.NewBorderLayout(top, nil, nil, nil),
+		top,
+		app.chatContainer,
 	))
 }
 
