@@ -173,14 +173,14 @@ func (app *App) onNewChatRoom() {
 			dialog.ShowError(err, app.main)
 			return
 		}
-		err = app.roomsList.Append(roomName)
-		if err != nil {
-			app.log.Error("error appending room", "error", err.Error())
-			dialog.ShowError(err, app.main)
-			return
-		}
-		idx := app.roomsList.Length() - 1
-		app.roomsListWidget.Select(idx)
+		// err = app.roomsList.Append(roomName)
+		// if err != nil {
+		// 	app.log.Error("error appending room", "error", err.Error())
+		// 	dialog.ShowError(err, app.main)
+		// 	return
+		// }
+		// idx := app.roomsList.Length() - 1
+		// app.roomsListWidget.Select(idx)
 	}, app.main)
 }
 

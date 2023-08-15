@@ -140,9 +140,12 @@ func (app *App) setup() {
 	app.roomsListWidget = widget.NewListWithData(app.roomsList, newRoomLabel, renderRoom)
 	app.roomsListWidget.OnSelected = app.onRoomSelected
 	app.roomsListWidget.OnUnselected = app.onRoomUnselected
-	roomsContainer := container.New(layout.NewVBoxLayout(),
+	roomsTop := container.New(layout.NewVBoxLayout(),
 		widget.NewButton("New Room", app.onNewChatRoom),
-		widget.NewLabel("Chat Rooms"), app.roomsListWidget,
+		widget.NewLabel("Chat Rooms"))
+	roomsContainer := container.New(layout.NewBorderLayout(roomsTop, nil, nil, nil),
+		roomsTop,
+		app.roomsListWidget,
 	)
 	app.chatTextGrid = widget.NewTextGrid()
 	app.chatContainer = container.New(layout.NewHBoxLayout(),
