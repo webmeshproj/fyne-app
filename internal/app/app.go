@@ -44,10 +44,14 @@ type App struct {
 	main fyne.Window
 	// nodeID is the ID of the node.
 	nodeID binding.String
+	// nodeIDDisplay is the display for the node ID.
+	nodeIDDisplay binding.String
 	// campfireURL is the current campfire URL.
 	campfireURL binding.String
 	// cancelNodeSubscriptions is the cancel function for stopping the node subscriptions.
 	cancelNodeSubscriptions context.CancelFunc
+	// cancelRoomSubscription is the cancel function for stopping the room subscription.
+	cancelRoomSubscription context.CancelFunc
 	// cancelConnect is the cancel function for stopping the an in-progress connection.
 	cancelConnect context.CancelFunc
 	// connecting indicates if the app is currently connecting to the mesh.
@@ -62,8 +66,14 @@ type App struct {
 	roomsListWidget *widget.List
 	// chatContainer is the container for the chat room.
 	chatContainer *fyne.Container
-	// chatTextGrid is the grid for the chat text.
-	chatTextGrid *widget.TextGrid
+	// chatText is the grid for the chat text.
+	chatText *widget.TextGrid
+	// chatGrid is the container containg the chat text and input.
+	chatGrid *fyne.Container
+	// joinRooms is the list of joined rooms.
+	joinRooms []string
+	// selectedRoom is the currently selected room.
+	selectedRoom string
 	// log is the application logger.
 	log *slog.Logger
 }
@@ -75,9 +85,11 @@ func New(socketAddr string) *App {
 		App:                     a,
 		main:                    a.NewWindow("Webmesh Campfire"),
 		nodeID:                  binding.NewString(),
+		nodeIDDisplay:           binding.NewString(),
 		campfireURL:             binding.NewString(),
 		newCampButton:           widget.NewButton("New Campfire", func() {}),
 		roomsList:               binding.NewStringList(),
+		chatText:                widget.NewTextGrid(),
 		cancelNodeSubscriptions: func() {},
 		cancelConnect:           func() {},
 		log:                     slog.Default(),
@@ -114,7 +126,7 @@ func (app *App) setup() {
 	app.newCampButton = widget.NewButton("New Campfire", app.onNewCampfire)
 	app.newCampButton.Alignment = widget.ButtonAlignTrailing
 	app.newCampButton.Disable()
-	nodeIDWidget := widget.NewLabelWithData(app.nodeID)
+	nodeIDWidget := widget.NewLabelWithData(app.nodeIDDisplay)
 	nodeIDWidget.Alignment = fyne.TextAlignTrailing
 	nodeIDWidget.TextStyle = fyne.TextStyle{Italic: true}
 	header := container.New(layout.NewHBoxLayout(),
@@ -147,12 +159,18 @@ func (app *App) setup() {
 		roomsTop,
 		app.roomsListWidget,
 	)
-	app.chatTextGrid = widget.NewTextGrid()
-	app.chatContainer = container.New(layout.NewHBoxLayout(),
-		roomsContainer,
-		widget.NewSeparator(),
-		app.chatTextGrid,
+	roomBox := container.New(layout.NewHBoxLayout(), roomsContainer, widget.NewSeparator())
+	chatInput := widget.NewEntry()
+	chatInput.SetPlaceHolder("Enter message (Shift + Enter to send)")
+	chatInput.OnSubmitted = app.onSendMessage
+	chatInput.MultiLine = true
+	chatInput.Wrapping = fyne.TextWrapWord
+	app.chatGrid = container.New(layout.NewBorderLayout(nil, chatInput, nil, nil), app.chatText, chatInput)
+	app.chatContainer = container.New(layout.NewBorderLayout(nil, nil, roomBox, nil),
+		roomBox,
+		app.chatGrid,
 	)
+	app.chatGrid.Hide()
 	app.chatContainer.Hide()
 
 	body := container.New(layout.NewVBoxLayout(),

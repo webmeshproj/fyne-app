@@ -20,11 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	v1 "github.com/webmeshproj/api/v1"
@@ -173,19 +176,132 @@ func (app *App) onNewChatRoom() {
 			dialog.ShowError(err, app.main)
 			return
 		}
-		// err = app.roomsList.Append(roomName)
-		// if err != nil {
-		// 	app.log.Error("error appending room", "error", err.Error())
-		// 	dialog.ShowError(err, app.main)
-		// 	return
-		// }
-		// idx := app.roomsList.Length() - 1
-		// app.roomsListWidget.Select(idx)
+		ourID, _ := app.nodeID.Get()
+		// Add ourself as a member
+		err = app.doPublish(ctx, &v1.PublishRequest{
+			Key: MembersPath(roomName) + "/" + ourID,
+			Ttl: durationpb.New(ttl),
+		})
+		if err != nil {
+			app.log.Error("error adding member", "error", err.Error())
+			dialog.ShowError(err, app.main)
+			return
+		}
+		app.joinRooms = append(app.joinRooms, roomName)
 	}, app.main)
 }
 
 func (app *App) onRoomSelected(index int) {
 	if app.chatContainer.Hidden {
+		return
+	}
+	app.chatGrid.Show()
+	ctx := context.Background()
+	ctx, app.cancelRoomSubscription = context.WithCancel(ctx)
+	roomName, err := app.roomsList.GetItem(index)
+	if err != nil {
+		app.log.Error("error getting room name", "error", err.Error())
+		return
+	}
+	roomNameValue, _ := roomName.(binding.String).Get()
+	app.selectedRoom = roomNameValue
+	c, err := app.dialNode(ctx)
+	if err != nil {
+		app.log.Error("error dialing node", "error", err.Error())
+		return
+	}
+	// Check if we have already joined
+	if !slices.Contains(app.joinRooms, roomNameValue) {
+		// Join the room
+		ourID, _ := app.nodeID.Get()
+		err = app.doPublish(ctx, &v1.PublishRequest{
+			Key: MembersPath(roomNameValue) + "/" + ourID,
+		})
+		if err != nil {
+			app.log.Error("error joining room", "error", err.Error())
+			return
+		}
+	}
+	// List the current members
+	cli := v1.NewAppDaemonClient(c)
+	resp, err := cli.Query(ctx, &v1.QueryRequest{
+		Command: v1.QueryRequest_LIST,
+		Query:   MembersPath(roomNameValue),
+	})
+	if err != nil {
+		app.log.Error("error listing members", "error", err.Error())
+		return
+	}
+	defer resp.CloseSend()
+	result, err := resp.Recv()
+	if err != nil {
+		app.log.Error("error receiving members", "error", err.Error())
+		return
+	}
+	members := make([]string, 0, 10)
+	for _, m := range result.GetValue() {
+		m = strings.TrimPrefix(m, MembersPath(roomNameValue)+"/")
+		parts := strings.Split(m, "/")
+		if len(parts) != 1 {
+			continue
+		}
+		members = append(members, parts[0])
+	}
+	// Write a header to the chat text grid
+	app.chatText.SetText(fmt.Sprintf("Room: %s\nMembers: %s\n", roomNameValue, strings.Join(members, ", ")))
+	stream, err := cli.Subscribe(ctx, &v1.SubscribeRequest{
+		Prefix: RoomPath(roomNameValue),
+	})
+	if err != nil {
+		app.log.Error("error subscribing to room", "error", err.Error())
+		return
+	}
+	go func() {
+		for {
+			msg, err := stream.Recv()
+			if err != nil {
+				if err == io.EOF {
+					return
+				}
+				app.log.Error("error receiving message", "error", err.Error())
+				return
+			}
+			prefix := strings.TrimPrefix(msg.GetKey(), RoomPath(roomNameValue)+"/")
+			parts := strings.Split(prefix, "/")
+			switch parts[0] {
+			case "members":
+				if len(parts) != 2 {
+					continue
+				}
+				// Emit a message to the chat text grid
+				app.chatText.SetText(fmt.Sprintf("%sMember %s joined the room\n", app.chatText.Text(), parts[1]))
+			case "messages":
+				if len(parts) != 3 {
+					continue
+				}
+				// Emit a message to the chat text grid
+				from := parts[2]
+				ts := parts[1]
+				t, _ := time.Parse(time.RFC3339Nano, ts)
+				tstr := t.Format(time.RFC3339)
+				msg := strings.TrimSpace(msg.GetValue())
+				app.chatText.SetText(fmt.Sprintf("%s%s [%s]: %s\n", app.chatText.Text(), from, tstr, msg))
+			}
+		}
+	}()
+}
+
+func (app *App) onSendMessage(s string) {
+	nodeID, _ := app.nodeID.Get()
+	key := NewMessageKey(app.selectedRoom, nodeID)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	err := app.doPublish(ctx, &v1.PublishRequest{
+		Key:   key,
+		Value: s,
+	})
+	if err != nil {
+		app.log.Error("error sending message", "error", err.Error())
 		return
 	}
 }
@@ -194,4 +310,7 @@ func (app *App) onRoomUnselected(index int) {
 	if app.chatContainer.Hidden {
 		return
 	}
+	app.chatGrid.Hide()
+	app.cancelRoomSubscription()
+	app.chatText.SetText("")
 }
