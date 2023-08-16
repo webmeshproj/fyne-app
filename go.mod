@@ -6,8 +6,8 @@ toolchain go1.21.0
 
 require (
 	fyne.io/fyne/v2 v2.3.5
-	github.com/webmeshproj/api v0.2.2-0.20230814182339-969e74f1fb90
-	github.com/webmeshproj/webmesh v0.1.14-0.20230814183019-ebafb71ee990
+	github.com/webmeshproj/api v0.2.2-0.20230816202252-1fce8e40c04c
+	github.com/webmeshproj/webmesh v0.2.1
 	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0
 )

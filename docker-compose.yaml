@@ -50,7 +50,6 @@ services:
       - --global.no-ipv6
       - --bootstrap.enabled
       - --raft.in-memory
-      - --mesh.join-as-voter
       - --services.api.webrtc
       - --services.api.stun-servers=stun:10.1.0.1:3478
       - --app-daemon
@@ -74,7 +73,6 @@ services:
       - --global.no-ipv6
       - --bootstrap.enabled
       - --raft.in-memory
-      - --mesh.join-as-voter
       - --services.api.webrtc
       - --services.api.stun-servers=stun:10.1.0.1:3478
       - --app-daemon
@@ -98,7 +96,6 @@ services:
       - --global.no-ipv6
       - --bootstrap.enabled
       - --raft.in-memory
-      - --mesh.join-as-voter
       - --services.api.webrtc
       - --services.api.stun-servers=stun:10.1.0.1:3478
       - --app-daemon
