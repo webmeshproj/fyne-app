@@ -55,10 +55,15 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 			app.connecting.Store(true)
 			app.log.Info("connecting to mesh")
 			label.Set("Connecting")
-			campURL, _ := app.campfireURL.Get()
+			joinPSK, err := app.joinPSK.Get()
+			if err != nil {
+				app.log.Error("error getting join PSK", "error", err.Error())
+				return
+			}
 			var opts v1.ConnectRequest
-			if campURL != "" {
-				opts.CampfireUri = campURL
+			if joinPSK != "" {
+				opts.DisableBootstrap = true
+				opts.JoinPsk = joinPSK
 			}
 			go func() {
 				defer app.connecting.Store(false)
@@ -75,7 +80,7 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 					return
 				}
 				switchValue.Set(switchConnected)
-				app.newCampButton.Enable()
+				app.newPSKButton.Enable()
 				app.connected.Store(true)
 				nodeFQDN := fmt.Sprintf("%s.%s", resp.GetNodeId(), resp.GetMeshDomain())
 				app.nodeID.Set(resp.GetNodeId())
@@ -174,10 +179,11 @@ func (app *App) onConnectChange(label binding.String, switchValue binding.Float)
 					}
 				}
 				label.Set("Disconnected")
-				app.newCampButton.Disable()
-				app.campfireURL.Set("")
+				app.newPSKButton.Disable()
+				app.joinPSK.Set("")
 				app.connected.Store(false)
 				app.nodeID.Set("")
+				app.nodeIDDisplay.Set("")
 				app.chatContainer.Hide()
 				app.chatText.SetText("")
 				app.roomsList.Set([]string{})

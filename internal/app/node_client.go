@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	v1 "github.com/webmeshproj/api/v1"
-	"github.com/webmeshproj/webmesh/pkg/campfire"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -63,14 +62,14 @@ func (app *App) getNodeMetrics(ctx context.Context) (*v1.InterfaceMetrics, error
 	return nil, fmt.Errorf("no metrics returned")
 }
 
-func (app *App) startCampfire(ctx context.Context, uri *campfire.CampfireURI) error {
+func (app *App) announceDHT(ctx context.Context, psk string) error {
 	c, err := app.dialNode(ctx)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
-	_, err = v1.NewAppDaemonClient(c).StartCampfire(ctx, &v1.StartCampfireRequest{
-		CampUrl: uri.EncodeURI(),
+	_, err = v1.NewAppDaemonClient(c).AnnounceDHT(ctx, &v1.AnnounceDHTRequest{
+		Psk: psk,
 	})
 	return err
 }

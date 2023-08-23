@@ -5,8 +5,8 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: 10.1.0.0/24
-          gateway: 10.1.0.100
+        - subnet: 10.100.0.0/24
+          gateway: 10.100.0.10
   site-1:
     ipam:
       driver: default
@@ -24,57 +24,45 @@ networks:
         - subnet: 10.30.0.0/24
 
 services:
-  turn-server:
-    image: ghcr.io/webmeshproj/turn:latest
-    networks:
-      public-net:
-        ipv4_address: 10.1.0.1
-    entrypoint:
-      - /webmesh-turn
-      - --public-ip=10.1.0.1
-      - --enable-campfire=true
-    restart: on-failure
-
   site-1:
     image: ${IMAGE:-ghcr.io/webmeshproj/node:latest}
     networks:
       public-net:
-        ipv4_address: 10.1.0.2
+        ipv4_address: 10.100.0.1
       site-1:
     hostname: site-1
     entrypoint:
       - /webmesh-node
       - --global.insecure
-      - --global.detect-endpoints
-      - --global.detect-private-endpoints
+      - --global.primary-endpoint=10.100.0.1
       - --global.no-ipv6
+      - --global.log-level=debug
       - --bootstrap.enabled
       - --raft.in-memory
-      - --services.api.webrtc
-      - --services.api.stun-servers=stun:10.1.0.1:3478
       - --app-daemon
       - --app-daemon-bind=0.0.0.0:8081
+      - --plugins.debug.listen-address=:6060
+      - --plugins.debug.enable-db-querier=true
     ports:
       - 8081:8081
+      - 6060:6060
     cap_add: ["NET_ADMIN", "NET_RAW", "SYS_MODULE"]
 
   site-2:
     image: ${IMAGE:-ghcr.io/webmeshproj/node:latest}
     networks:
       public-net:
-        ipv4_address: 10.1.0.3
+        ipv4_address: 10.100.0.2
       site-2:
     hostname: site-2
     entrypoint:
       - /webmesh-node
       - --global.insecure
-      - --global.detect-endpoints
-      - --global.detect-private-endpoints
+      - --global.primary-endpoint=10.100.0.2
       - --global.no-ipv6
+      - --global.log-level=debug
       - --bootstrap.enabled
       - --raft.in-memory
-      - --services.api.webrtc
-      - --services.api.stun-servers=stun:10.1.0.1:3478
       - --app-daemon
       - --app-daemon-bind=0.0.0.0:8082
     ports:
@@ -85,19 +73,16 @@ services:
     image: ${IMAGE:-ghcr.io/webmeshproj/node:latest}
     networks:
       public-net:
-        ipv4_address: 10.1.0.4
+        ipv4_address: 10.100.0.3
       site-3:
     hostname: site-3
     entrypoint:
       - /webmesh-node
       - --global.insecure
-      - --global.detect-endpoints
-      - --global.detect-private-endpoints
+      - --global.primary-endpoint=10.100.0.3
       - --global.no-ipv6
       - --bootstrap.enabled
       - --raft.in-memory
-      - --services.api.webrtc
-      - --services.api.stun-servers=stun:10.1.0.1:3478
       - --app-daemon
       - --app-daemon-bind=0.0.0.0:8083
     ports:

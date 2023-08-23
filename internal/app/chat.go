@@ -18,6 +18,7 @@ package app
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -31,15 +32,14 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	v1 "github.com/webmeshproj/api/v1"
-	"github.com/webmeshproj/webmesh/pkg/campfire"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 const (
-	// CampFirePrefix is the storage prefix for the campfire chat.
-	CampFirePrefix = "/campfire-chat"
-	// RoomsPrefix is the prefix for campfire chat rooms.
-	RoomsPrefix = CampFirePrefix + "/rooms"
+	// ChatPrefix is the storage prefix for the chat.
+	ChatPrefix = "/chat"
+	// RoomsPrefix is the prefix for chat rooms.
+	RoomsPrefix = ChatPrefix + "/rooms"
 )
 
 // RoomPath returns the storage path for a room.
@@ -61,6 +61,23 @@ func MessagesPath(roomName string) string {
 func NewMessageKey(roomName string, from string) string {
 	t := time.Now().UTC().Format(time.RFC3339Nano)
 	return path.Join(MessagesPath(roomName), t, from)
+}
+
+func (app *App) onNewPSK() {
+	psk, err := generatePSK()
+	if err != nil {
+		// This should never happen
+		dialog.ShowError(err, app.main)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	err = app.announceDHT(ctx, psk)
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("failed to start campfire: %w", err), app.main)
+		return
+	}
+	app.joinPSK.Set(psk)
 }
 
 func (app *App) listRooms() ([]string, error) {
@@ -93,36 +110,6 @@ func (app *App) listRooms() ([]string, error) {
 		rooms = append(rooms, parts[0])
 	}
 	return rooms, nil
-}
-
-func (app *App) onNewCampfire() {
-	psk, err := campfire.GeneratePSK()
-	if err != nil {
-		// This should never happen
-		dialog.ShowError(err, app.main)
-		return
-	}
-	turnServersPref := app.Preferences().StringWithFallback(preferenceTURNServers, "")
-	if strings.TrimSpace(turnServersPref) == "" {
-		dialog.ShowError(errors.New("no TURN servers configured, add them in the preferences"), app.main)
-		return
-	}
-	campTurnServers := strings.Split(strings.TrimSpace(turnServersPref), ",")
-	for i, server := range campTurnServers {
-		campTurnServers[i] = strings.TrimPrefix(server, "turn:")
-	}
-	uri := &campfire.CampfireURI{
-		PSK:         psk,
-		TURNServers: campTurnServers,
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-	err = app.startCampfire(ctx, uri)
-	if err != nil {
-		dialog.ShowError(fmt.Errorf("failed to start campfire: %w", err), app.main)
-		return
-	}
-	app.campfireURL.Set(uri.EncodeURI())
 }
 
 func (app *App) onNewChatRoom() {
@@ -317,4 +304,19 @@ func (app *App) onRoomUnselected(index int) {
 	app.chatGrid.Hide()
 	app.cancelRoomSubscription()
 	app.chatText.SetText("")
+}
+
+var validPSKChars = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+func generatePSK() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", fmt.Errorf("failed to read random bytes: %w", err)
+	}
+	psk := make([]rune, 32)
+	for i, v := range b {
+		psk[i] = validPSKChars[int(v)%len(validPSKChars)]
+	}
+	return string(psk), nil
 }

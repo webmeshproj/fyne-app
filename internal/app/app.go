@@ -46,8 +46,8 @@ type App struct {
 	nodeID binding.String
 	// nodeIDDisplay is the display for the node ID.
 	nodeIDDisplay binding.String
-	// campfireURL is the current campfire URL.
-	campfireURL binding.String
+	// joinPSK is the current PSK for joining a mesh.
+	joinPSK binding.String
 	// cancelNodeSubscriptions is the cancel function for stopping the node subscriptions.
 	cancelNodeSubscriptions context.CancelFunc
 	// cancelRoomSubscription is the cancel function for stopping the room subscription.
@@ -58,8 +58,8 @@ type App struct {
 	connecting atomic.Bool
 	// connected indicates if the app is currently connected to the mesh.
 	connected atomic.Bool
-	// newCampButton is the button for creating a new campfire.
-	newCampButton *widget.Button
+	// newPSKButton is the button for creating a new PSK.
+	newPSKButton *widget.Button
 	// roomsList is the list of rooms.
 	roomsList binding.StringList
 	// roomsListWidget is the widget containing the list of rooms.
@@ -85,11 +85,11 @@ func New(socketAddr string) *App {
 	a := app.NewWithID(AppID)
 	app := &App{
 		App:                     a,
-		main:                    a.NewWindow("Webmesh Campfire"),
+		main:                    a.NewWindow("Webmesh"),
 		nodeID:                  binding.NewString(),
 		nodeIDDisplay:           binding.NewString(),
-		campfireURL:             binding.NewString(),
-		newCampButton:           widget.NewButton("New Campfire", func() {}),
+		joinPSK:                 binding.NewString(),
+		newPSKButton:            widget.NewButton("Generate PSK", func() {}),
 		roomsList:               binding.NewStringList(),
 		chatText:                widget.NewTextGrid(),
 		chatInput:               widget.NewEntry(),
@@ -119,24 +119,24 @@ func (app *App) setup() {
 	connectedLabel := widget.NewLabelWithData(connectedText)
 	connectSwitch, connected := newConnectSwitch()
 	connected.AddListener(binding.NewDataListener(app.onConnectChange(connectedText, connected)))
-	campfileEntry := widget.NewEntryWithData(app.campfireURL)
-	campfileEntry.Wrapping = fyne.TextWrapOff
-	campfileEntry.SetPlaceHolder("Campfire URI")
-	campfileEntry.SetMinRowsVisible(1)
-	campfileEntry.OnChanged = func(s string) {
-		app.campfireURL.Set(s)
+	pskEntry := widget.NewEntryWithData(app.joinPSK)
+	pskEntry.Wrapping = fyne.TextWrapOff
+	pskEntry.SetPlaceHolder("Mesh PSK")
+	pskEntry.SetMinRowsVisible(1)
+	pskEntry.OnChanged = func(s string) {
+		app.joinPSK.Set(s)
 	}
-	app.newCampButton = widget.NewButton("New Campfire", app.onNewCampfire)
-	app.newCampButton.Alignment = widget.ButtonAlignTrailing
-	app.newCampButton.Disable()
+	app.newPSKButton = widget.NewButton("Generate PSK", app.onNewPSK)
+	app.newPSKButton.Alignment = widget.ButtonAlignTrailing
+	app.newPSKButton.Disable()
 	nodeIDWidget := widget.NewLabelWithData(app.nodeIDDisplay)
 	nodeIDWidget.Alignment = fyne.TextAlignTrailing
 	nodeIDWidget.TextStyle = fyne.TextStyle{Italic: true}
 	header := container.New(layout.NewHBoxLayout(),
 		connectSwitch, connectedLabel, nodeIDWidget,
 		layout.NewSpacer(),
-		campfileEntry,
-		app.newCampButton,
+		pskEntry,
+		app.newPSKButton,
 	)
 
 	// Interface metrics section
