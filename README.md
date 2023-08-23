@@ -20,7 +20,7 @@ The daemon can be started by running a `webmesh-node` with the `--app-daemon` fl
 You can also use the `docker-compose` in this repository to run a node with the daemon enabled.
 
 ```sh
-webmesh-turn --app-daemon --app-daemon-bind tcp://127.0.0.1:8080
+webmesh-node --app-daemon --app-daemon-bind tcp://127.0.0.1:8080
 ```
 
 By default, on unix-like systems, the daemon will listen on a unix socket at `/var/run/webmesh/webmesh.sock`.
