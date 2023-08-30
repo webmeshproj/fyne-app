@@ -6,8 +6,8 @@ toolchain go1.21.0
 
 require (
 	fyne.io/fyne/v2 v2.3.5
-	github.com/webmeshproj/api v0.2.4
-	github.com/webmeshproj/webmesh v0.2.7-0.20230823194340-4f9a568a9f62
+	github.com/webmeshproj/api v0.3.0
+	github.com/webmeshproj/webmesh v0.3.2-0.20230830204138-1aa41cc89616
 	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0
 )
@@ -18,7 +18,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fredbi/uri v0.1.0 // indirect
-	github.com/fsnotify/fsnotify v1.5.4 // indirect
+	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/fyne-io/gl-js v0.0.0-20220119005834-d2da28d9ccfe // indirect
 	github.com/fyne-io/glfw-js v0.0.0-20220120001248-ee7290d23504 // indirect
 	github.com/fyne-io/image v0.0.0-20220602074514-4956b0afb3d2 // indirect
